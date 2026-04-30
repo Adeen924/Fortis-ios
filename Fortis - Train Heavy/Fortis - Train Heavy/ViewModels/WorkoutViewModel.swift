@@ -210,22 +210,6 @@ struct WorkoutExerciseEntry: Identifiable {
     }
 }
 
-    init(exercise: Exercise, order: Int) {
-        self.exerciseID = exercise.id
-        self.exerciseName = exercise.name
-        self.exerciseCategory = exercise.category
-        self.primaryMuscles = exercise.primaryMuscles
-        self.order = order
-        // Start with one empty set
-        self.sets = [SetEntry(setNumber: 1, reps: 10, weight: 0)]
-    }
-
-    var totalVolume: Double {
-        sets.filter { $0.isCompleted }.reduce(0) { $0 + $1.volume }
-    }
-    var completedSets: Int { sets.filter { $0.isCompleted }.count }
-}
-
 struct SetEntry: Identifiable {
     var id: UUID = UUID()
     var setNumber: Int
