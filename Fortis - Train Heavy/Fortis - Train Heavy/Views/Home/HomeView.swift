@@ -36,13 +36,11 @@ struct HomeView: View {
     }
 
     private var weeklyWorkoutCount: Int {
-        let ago = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        return sessions.filter { $0.startDate >= ago }.count
+        sessions.filter { $0.startDate >= currentWeekStart }.count
     }
 
     private var weeklyVolumeFormatted: String {
-        let ago = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let v = sessions.filter { $0.startDate >= ago }.reduce(0.0) { $0 + $1.totalVolume }
+        let v = sessions.filter { $0.startDate >= currentWeekStart }.reduce(0.0) { $0 + $1.totalVolume }
         if v >= 1000 { return String(format: "%.1fk", v / 1000) }
         return String(format: "%.0f", v)
     }
@@ -60,9 +58,18 @@ struct HomeView: View {
         return streak
     }
 
+    private var sundayCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 1
+        return calendar
+    }
+
+    private var currentWeekStart: Date {
+        sundayCalendar.dateInterval(of: .weekOfYear, for: Date())?.start ?? sundayCalendar.startOfDay(for: Date())
+    }
+
     private var weeklySessions: [WorkoutSession] {
-        let ago = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        return sessions.filter { $0.startDate >= ago }
+        sessions.filter { $0.startDate >= currentWeekStart }
     }
 
     private var combinedWeeklyPrimaryMuscles: [String] {
@@ -142,7 +149,8 @@ struct HomeView: View {
                     secondaryMuscles: combinedWeeklySecondaryMuscles
                 )
                 .frame(height: 200)
-                .padding(.bottom, 8)
+                .padding(.top, 16)
+                .padding(.bottom, 16)
             }
         }
     }
