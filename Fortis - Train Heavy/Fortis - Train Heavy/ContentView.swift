@@ -8,11 +8,11 @@ struct ContentView: View {
             HomeView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
 
-            WorkoutTabView(activeWorkout: $activeWorkout)
-                .tabItem { Label("Workout", systemImage: "flame.fill") }
-
             HistoryView()
                 .tabItem { Label("History", systemImage: "scroll.fill") }
+
+            AnalyticsView()
+                .tabItem { Label("Analytics", systemImage: "chart.bar.fill") }
 
             SocialView()
                 .tabItem { Label("Social", systemImage: "person.2.fill") }
