@@ -18,6 +18,7 @@ final class WorkoutViewModel: Identifiable {
     init() {
         startTime = Date()
         startTimer()
+        WatchSessionManager.shared.startWatchWorkout(named: workoutName)
     }
 
     // MARK: - Timer
@@ -144,6 +145,7 @@ final class WorkoutViewModel: Identifiable {
     // MARK: - Finish & Save
     func finishWorkout(context: ModelContext) -> WorkoutSession {
         stopTimer()
+        WatchSessionManager.shared.endWatchWorkout()
         let session = WorkoutSession(
             name: workoutName.isEmpty ? defaultWorkoutName() : workoutName,
             startDate: startTime,
