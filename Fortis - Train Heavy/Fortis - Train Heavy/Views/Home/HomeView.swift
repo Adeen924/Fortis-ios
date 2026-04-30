@@ -141,7 +141,8 @@ struct HomeView: View {
                     primaryMuscles: combinedWeeklyPrimaryMuscles,
                     secondaryMuscles: combinedWeeklySecondaryMuscles
                 )
-                .frame(height: 260)
+                .frame(height: 200)
+                .padding(.bottom, 8)
             }
         }
     }
