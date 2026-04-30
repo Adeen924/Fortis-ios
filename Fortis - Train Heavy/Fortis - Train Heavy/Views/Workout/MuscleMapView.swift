@@ -9,7 +9,7 @@ struct MuscleMapView: View {
     @Query private var profiles: [UserProfile]
 
     private var userGender: BodyGender {
-        profiles.first?.gender == "female" ? .female : .male
+        (profiles.first?.gender ?? "male") == "female" ? .female : .male
     }
 
     var body: some View {

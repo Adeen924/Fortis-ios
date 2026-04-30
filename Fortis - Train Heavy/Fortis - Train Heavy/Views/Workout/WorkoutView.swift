@@ -252,21 +252,39 @@ struct ExerciseLogCard: View {
             ForEach(entry.sets) { set in
                 SetRow(
                     set: set,
-                    onToggle: { viewModel.toggleSetCompleted(in: entry, setID: set.id) },
+                    onRedo: { viewModel.addRedoSet(to: entry, from: set.id) },
                     onUpdate: { reps, weight in
                         viewModel.updateSet(in: entry, setID: set.id, reps: reps, weight: weight)
                     }
                 )
             }
 
-            Button {
-                viewModel.addSet(to: entry)
-            } label: {
-                Label("Add Set", systemImage: "plus")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.romanGold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.addSet(to: entry)
+                } label: {
+                    Label("Add Set", systemImage: "plus")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.romanGold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.romanSurfaceHigh)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                Button {
+                    viewModel.removeLastSet(from: entry)
+                } label: {
+                    Label("Remove Set", systemImage: "minus")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.romanCrimson)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.romanSurfaceHigh)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .disabled(entry.sets.isEmpty)
+                .opacity(entry.sets.isEmpty ? 0.5 : 1)
             }
             .padding(.top, 4)
         }
@@ -281,15 +299,15 @@ struct ExerciseLogCard: View {
 // MARK: - Set Row
 struct SetRow: View {
     let set: SetEntry
-    let onToggle: () -> Void
+    let onRedo: () -> Void
     let onUpdate: (Int, Double) -> Void
 
     @State private var repsText: String
     @State private var weightText: String
 
-    init(set: SetEntry, onToggle: @escaping () -> Void, onUpdate: @escaping (Int, Double) -> Void) {
+    init(set: SetEntry, onRedo: @escaping () -> Void, onUpdate: @escaping (Int, Double) -> Void) {
         self.set = set
-        self.onToggle = onToggle
+        self.onRedo = onRedo
         self.onUpdate = onUpdate
         _repsText   = State(initialValue: set.reps > 0   ? "\(set.reps)"                      : "")
         _weightText = State(initialValue: set.weight > 0 ? String(format: "%.1f", set.weight) : "")
@@ -328,10 +346,10 @@ struct SetRow: View {
                     if let r = Int(new) { onUpdate(r, Double(weightText) ?? set.weight) }
                 }
 
-            Button(action: onToggle) {
-                Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
+            Button(action: onRedo) {
+                Image(systemName: "arrow.clockwise")
                     .font(.title3)
-                    .foregroundStyle(set.isCompleted ? .romanGold : .romanParchmentDim)
+                    .foregroundStyle(.romanGold)
             }
             .frame(width: 44)
         }

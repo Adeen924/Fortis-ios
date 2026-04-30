@@ -59,13 +59,33 @@ final class WorkoutViewModel: Identifiable {
     // MARK: - Set Management
     func addSet(to exerciseEntry: WorkoutExerciseEntry) {
         guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }) else { return }
-        let lastSet = workoutExercises[idx].sets.last
         let newSet = SetEntry(
             setNumber: workoutExercises[idx].sets.count + 1,
-            reps: lastSet?.reps ?? 10,
-            weight: lastSet?.weight ?? 0
+            reps: 0,
+            weight: 0
         )
         workoutExercises[idx].sets.append(newSet)
+    }
+
+    func addRedoSet(to exerciseEntry: WorkoutExerciseEntry, from setID: UUID) {
+        guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }),
+              let sourceSet = workoutExercises[idx].sets.first(where: { $0.id == setID }) else { return }
+        let newSet = SetEntry(
+            setNumber: workoutExercises[idx].sets.count + 1,
+            reps: sourceSet.reps,
+            weight: sourceSet.weight
+        )
+        workoutExercises[idx].sets.append(newSet)
+    }
+
+    func removeLastSet(from exerciseEntry: WorkoutExerciseEntry) {
+        guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }),
+              !workoutExercises[idx].sets.isEmpty else { return }
+        workoutExercises[idx].sets.removeLast()
+        // Re-number
+        for (s, _) in workoutExercises[idx].sets.enumerated() {
+            workoutExercises[idx].sets[s].setNumber = s + 1
+        }
     }
 
     func removeSet(from exerciseEntry: WorkoutExerciseEntry, at offsets: IndexSet) {
@@ -85,6 +105,13 @@ final class WorkoutViewModel: Identifiable {
         if let completed {
             workoutExercises[eIdx].sets[sIdx].isCompleted = completed
             if completed { workoutExercises[eIdx].sets[sIdx].completedAt = Date() }
+        }
+        // Auto-complete if both reps and weight are set
+        let currentReps = reps ?? workoutExercises[eIdx].sets[sIdx].reps
+        let currentWeight = weight ?? workoutExercises[eIdx].sets[sIdx].weight
+        if currentReps > 0 && currentWeight > 0 && !workoutExercises[eIdx].sets[sIdx].isCompleted {
+            workoutExercises[eIdx].sets[sIdx].isCompleted = true
+            workoutExercises[eIdx].sets[sIdx].completedAt = Date()
         }
     }
 

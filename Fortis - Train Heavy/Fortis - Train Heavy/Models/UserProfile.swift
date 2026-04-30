@@ -10,7 +10,7 @@ final class UserProfile {
     var email: String?
     var phoneNumber: String?
     var age: Int
-    var gender: String  // "male" or "female"
+    var gender: String?  // "male" or "female"
     var heightFeet: Int
     var heightInches: Int
     var weightLbs: Double
@@ -31,7 +31,7 @@ final class UserProfile {
         email: String? = nil,
         phoneNumber: String? = nil,
         age: Int = 18,
-        gender: String = "male",
+        gender: String? = "male",
         heightFeet: Int = 5,
         heightInches: Int = 10,
         weightLbs: Double = 160,
