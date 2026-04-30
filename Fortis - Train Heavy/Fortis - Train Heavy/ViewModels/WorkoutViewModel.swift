@@ -36,8 +36,8 @@ final class WorkoutViewModel: Identifiable {
     }
 
     // MARK: - Exercise Management
-    func addExercise(_ exercise: Exercise) {
-        let entry = WorkoutExerciseEntry(exercise: exercise, order: workoutExercises.count)
+    func addExercise(_ exercise: Exercise, bodyWeightLbs: Double? = nil) {
+        let entry = WorkoutExerciseEntry(exercise: exercise, order: workoutExercises.count, bodyWeightLbs: bodyWeightLbs)
         workoutExercises.append(entry)
     }
 
@@ -59,21 +59,41 @@ final class WorkoutViewModel: Identifiable {
     // MARK: - Set Management
     func addSet(to exerciseEntry: WorkoutExerciseEntry) {
         guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }) else { return }
-        let newSet = SetEntry(
-            setNumber: workoutExercises[idx].sets.count + 1,
-            reps: 0,
-            weight: 0
-        )
-        workoutExercises[idx].sets.append(newSet)
+        let nextNumber = (workoutExercises[idx].sets.map { $0.setNumber }.max() ?? 0) + 1
+        let newSetWeight = workoutExercises[idx].isBodyweight ? (workoutExercises[idx].bodyWeightLbs ?? 0) : 0
+        if workoutExercises[idx].isUnilateral {
+            let leftSet = SetEntry(
+                setNumber: nextNumber,
+                reps: 0,
+                weight: newSetWeight,
+                side: .left
+            )
+            let rightSet = SetEntry(
+                setNumber: nextNumber,
+                reps: 0,
+                weight: newSetWeight,
+                side: .right
+            )
+            workoutExercises[idx].sets.append(contentsOf: [leftSet, rightSet])
+        } else {
+            let newSet = SetEntry(
+                setNumber: nextNumber,
+                reps: 0,
+                weight: newSetWeight
+            )
+            workoutExercises[idx].sets.append(newSet)
+        }
     }
 
     func addRedoSet(to exerciseEntry: WorkoutExerciseEntry, from setID: UUID) {
         guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }),
               let sourceSet = workoutExercises[idx].sets.first(where: { $0.id == setID }) else { return }
+        let nextNumber = workoutExercises[idx].sets.map { $0.setNumber }.max() ?? 0 + 1
         let newSet = SetEntry(
-            setNumber: workoutExercises[idx].sets.count + 1,
+            setNumber: nextNumber,
             reps: sourceSet.reps,
-            weight: sourceSet.weight
+            weight: sourceSet.weight,
+            side: sourceSet.side
         )
         workoutExercises[idx].sets.append(newSet)
     }
@@ -81,10 +101,39 @@ final class WorkoutViewModel: Identifiable {
     func removeLastSet(from exerciseEntry: WorkoutExerciseEntry) {
         guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }),
               !workoutExercises[idx].sets.isEmpty else { return }
-        workoutExercises[idx].sets.removeLast()
-        // Re-number
-        for (s, _) in workoutExercises[idx].sets.enumerated() {
-            workoutExercises[idx].sets[s].setNumber = s + 1
+
+        if workoutExercises[idx].isUnilateral, workoutExercises[idx].sets.count >= 2 {
+            let last = workoutExercises[idx].sets[workoutExercises[idx].sets.count - 1]
+            let previous = workoutExercises[idx].sets[workoutExercises[idx].sets.count - 2]
+            if last.setNumber == previous.setNumber {
+                workoutExercises[idx].sets.removeLast(2)
+            } else {
+                workoutExercises[idx].sets.removeLast()
+            }
+        } else {
+            workoutExercises[idx].sets.removeLast()
+        }
+
+        if workoutExercises[idx].isUnilateral {
+            var renumbered: [SetEntry] = []
+            var nextNumber = 1
+            var chunk: [SetEntry] = []
+            for set in workoutExercises[idx].sets {
+                chunk.append(set)
+                if chunk.count == 2 || set.side == nil {
+                    for var item in chunk {
+                        item.setNumber = nextNumber
+                        renumbered.append(item)
+                    }
+                    chunk.removeAll()
+                    nextNumber += 1
+                }
+            }
+            workoutExercises[idx].sets = renumbered
+        } else {
+            for (s, _) in workoutExercises[idx].sets.enumerated() {
+                workoutExercises[idx].sets[s].setNumber = s + 1
+            }
         }
     }
 
@@ -113,6 +162,45 @@ final class WorkoutViewModel: Identifiable {
             workoutExercises[eIdx].sets[sIdx].isCompleted = true
             workoutExercises[eIdx].sets[sIdx].completedAt = Date()
         }
+    }
+
+    func setUnilateral(for exerciseEntry: WorkoutExerciseEntry, enabled: Bool) {
+        guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }) else { return }
+        var entry = workoutExercises[idx]
+
+        if enabled && !entry.isUnilateral {
+            var newSets: [SetEntry] = []
+            if entry.sets.isEmpty {
+                let startWeight = entry.bodyWeightLbs ?? 0
+                newSets = [
+                    SetEntry(setNumber: 1, reps: 0, weight: startWeight, side: .left),
+                    SetEntry(setNumber: 1, reps: 0, weight: startWeight, side: .right)
+                ]
+            } else {
+                let groupedSets = Dictionary(grouping: entry.sets, by: { $0.setNumber })
+                for number in groupedSets.keys.sorted() {
+                    let currentSets = groupedSets[number]!
+                    let reps = currentSets.first?.reps ?? 0
+                    let weight = currentSets.first?.weight ?? (entry.bodyWeightLbs ?? 0)
+                    newSets.append(SetEntry(setNumber: number, reps: reps, weight: weight, side: .left))
+                    newSets.append(SetEntry(setNumber: number, reps: reps, weight: weight, side: .right))
+                }
+            }
+            entry.sets = newSets
+            entry.isUnilateral = true
+        } else if !enabled && entry.isUnilateral {
+            var condensed: [SetEntry] = []
+            let grouped = Dictionary(grouping: entry.sets, by: { $0.setNumber })
+            for number in grouped.keys.sorted() {
+                let group = grouped[number]!
+                let representative = group.first(where: { $0.side == .left }) ?? group.first!
+                condensed.append(SetEntry(setNumber: number, reps: representative.reps, weight: representative.weight))
+            }
+            entry.sets = condensed
+            entry.isUnilateral = false
+        }
+
+        workoutExercises[idx] = entry
     }
 
     func toggleSetCompleted(in exerciseEntry: WorkoutExerciseEntry, setID: UUID) {
@@ -199,15 +287,24 @@ struct WorkoutExerciseEntry: Identifiable {
     var secondaryMuscles: [String]
     var order: Int
     var sets: [SetEntry] = []
+    var isUnilateral: Bool = false
+    var bodyWeightLbs: Double? = nil
 
-    init(exercise: Exercise, order: Int) {
+    init(exercise: Exercise, order: Int, bodyWeightLbs: Double? = nil) {
         self.exerciseID = exercise.id
         self.exerciseName = exercise.name
         self.exerciseCategory = exercise.category
         self.primaryMuscles = exercise.primaryMuscles
         self.secondaryMuscles = exercise.secondaryMuscles
         self.order = order
+        self.bodyWeightLbs = bodyWeightLbs
+        if bodyWeightLbs != nil {
+            let defaultWeight = bodyWeightLbs ?? 0
+            self.sets = [SetEntry(setNumber: 1, reps: 0, weight: defaultWeight)]
+        }
     }
+
+    var isBodyweight: Bool { bodyWeightLbs != nil }
 
     var totalVolume: Double {
         sets.filter { $0.isCompleted }.reduce(0) { $0 + $1.volume }
@@ -215,11 +312,17 @@ struct WorkoutExerciseEntry: Identifiable {
     var completedSets: Int { sets.filter { $0.isCompleted }.count }
 }
 
+enum ExerciseSide: String {
+    case left = "Left"
+    case right = "Right"
+}
+
 struct SetEntry: Identifiable {
     var id: UUID = UUID()
     var setNumber: Int
     var reps: Int
     var weight: Double
+    var side: ExerciseSide? = nil
     var isWarmup: Bool = false
     var isCompleted: Bool = false
     var completedAt: Date?

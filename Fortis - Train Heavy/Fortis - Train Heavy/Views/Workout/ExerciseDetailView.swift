@@ -8,11 +8,10 @@ struct ExerciseDetailView: View {
     let recommendation: RecommendedExercise?
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.romanBackground.ignoresSafeArea()
-                
-                ScrollView {
+        ZStack {
+            Color.romanBackground.ignoresSafeArea()
+
+            ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Exercise Header
                         headerSection
@@ -43,14 +42,6 @@ struct ExerciseDetailView: View {
             .navigationTitle(exercise.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundStyle(.romanGold)
-                    }
-                }
-            }
         }
         .preferredColorScheme(.dark)
     }

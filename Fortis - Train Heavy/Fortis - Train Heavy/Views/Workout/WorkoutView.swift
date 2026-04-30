@@ -5,9 +5,12 @@ struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var appSettings: AppSettings
     @Bindable var viewModel: WorkoutViewModel
+    @Query private var profiles: [UserProfile]
     let onDismiss: () -> Void
 
     @State private var showingExercisePicker = false
+
+    private var profile: UserProfile? { profiles.first }
     @State private var showingFinishAlert = false
     @State private var showingCancelAlert = false
     @State private var showingRenameSheet = false
@@ -31,7 +34,7 @@ struct ActiveWorkoutView: View {
             .safeAreaInset(edge: .bottom) { addExerciseButton }
             .sheet(isPresented: $showingExercisePicker) {
                 ExercisePickerView { exercise in
-                    viewModel.addExercise(exercise)
+                    viewModel.addExercise(exercise, bodyWeightLbs: profile?.weightLbs)
                 }
             }
             .sheet(isPresented: $showingRenameSheet) { renameSheet }
@@ -244,6 +247,18 @@ struct ExerciseLogCard: View {
             }
             .padding(14)
 
+            Toggle(isOn: Binding(
+                get: { entry.isUnilateral },
+                set: { viewModel.setUnilateral(for: entry, enabled: $0) }
+            )) {
+                Text("Unilateral")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.romanParchment)
+            }
+            .toggleStyle(SwitchToggleStyle(tint: .romanGold))
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+
             Rectangle().fill(Color.romanBorder).frame(height: 0.5).padding(.horizontal, 14)
 
             // Sets header
@@ -334,10 +349,17 @@ struct SetRow: View {
 
     var body: some View {
         HStack {
-            Text("\(set.setNumber)")
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.romanParchmentDim)
-                .frame(width: 36, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(set.setNumber)")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.romanParchmentDim)
+                if let side = set.side {
+                    Text(side.rawValue)
+                        .font(.caption2)
+                        .foregroundStyle(.romanGoldDim)
+                }
+            }
+            .frame(width: 36, alignment: .leading)
 
             TextField("0", text: $weightText)
                 .keyboardType(.decimalPad)
