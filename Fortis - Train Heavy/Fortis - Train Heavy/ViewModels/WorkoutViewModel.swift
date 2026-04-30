@@ -208,6 +208,11 @@ struct WorkoutExerciseEntry: Identifiable {
         self.secondaryMuscles = exercise.secondaryMuscles
         self.order = order
     }
+
+    var totalVolume: Double {
+        sets.filter { $0.isCompleted }.reduce(0) { $0 + $1.volume }
+    }
+    var completedSets: Int { sets.filter { $0.isCompleted }.count }
 }
 
 struct SetEntry: Identifiable {
