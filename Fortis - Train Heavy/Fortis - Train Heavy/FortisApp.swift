@@ -4,11 +4,16 @@ import SwiftData
 @main
 struct FortisApp: App {
     let modelContainer: ModelContainer
+    @State private var authManager = AuthManager()
 
     init() {
         do {
             modelContainer = try ModelContainer(
-                for: Exercise.self, WorkoutSession.self, ExerciseSet.self, WorkoutExercise.self,
+                for: Exercise.self,
+                     WorkoutSession.self,
+                     ExerciseSet.self,
+                     WorkoutExercise.self,
+                     UserProfile.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: false)
             )
         } catch {
@@ -23,8 +28,16 @@ struct FortisApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .modelContainer(modelContainer)
+            Group {
+                if authManager.isAuthenticated {
+                    ContentView()
+                } else {
+                    WelcomeView()
+                }
+            }
+            .modelContainer(modelContainer)
+            .environment(authManager)
+            .animation(.easeInOut(duration: 0.4), value: authManager.isAuthenticated)
         }
     }
 }
