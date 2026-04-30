@@ -15,8 +15,9 @@ struct FortisApp: App {
             fatalError("Failed to initialize ModelContainer: \(error)")
         }
         let container = modelContainer
-        Task { @MainActor in
-            ExerciseService.seedIfNeeded(context: container.mainContext)
+        Task.detached(priority: .utility) {
+            let context = await MainActor.run { ModelContext(container) }
+            ExerciseService.seedIfNeeded(context: context)
         }
     }
 
