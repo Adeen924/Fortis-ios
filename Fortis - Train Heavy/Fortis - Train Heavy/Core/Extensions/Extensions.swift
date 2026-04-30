@@ -40,6 +40,20 @@ extension Color {
     static let romanParchmentDim = Color(red: 0.502, green: 0.478, blue: 0.424)  // #807A6C
 }
 
+// MARK: - ShapeStyle extensions (makes .romanGold etc work in foregroundStyle / fill)
+extension ShapeStyle where Self == Color {
+    static var romanBackground:   Color { Color(red: 0.055, green: 0.051, blue: 0.047) }
+    static var romanSurface:      Color { Color(red: 0.114, green: 0.106, blue: 0.098) }
+    static var romanSurfaceHigh:  Color { Color(red: 0.176, green: 0.165, blue: 0.153) }
+    static var romanBorder:       Color { Color(red: 0.275, green: 0.255, blue: 0.224) }
+    static var romanGold:         Color { Color(red: 0.800, green: 0.667, blue: 0.271) }
+    static var romanGoldDim:      Color { Color(red: 0.502, green: 0.420, blue: 0.165) }
+    static var romanCrimson:      Color { Color(red: 0.600, green: 0.110, blue: 0.110) }
+    static var romanBronze:       Color { Color(red: 0.569, green: 0.431, blue: 0.196) }
+    static var romanParchment:    Color { Color(red: 0.941, green: 0.914, blue: 0.847) }
+    static var romanParchmentDim: Color { Color(red: 0.502, green: 0.478, blue: 0.424) }
+}
+
 // MARK: - Gradient helpers
 extension LinearGradient {
     static let romanGoldGradient = LinearGradient(
