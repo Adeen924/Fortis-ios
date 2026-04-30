@@ -168,7 +168,7 @@ struct ExerciseDetailView: View {
                     Spacer()
                 }
                 
-                if !(exercise.secondaryMuscles?.isEmpty ?? true) {
+                if !exercise.secondaryMuscles.isEmpty {
                     Divider()
                         .background(Color.romanBorder)
                     
