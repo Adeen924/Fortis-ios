@@ -67,6 +67,7 @@ struct HistoryView: View {
 }
 
 struct HistoryRow: View {
+    @EnvironmentObject private var appSettings: AppSettings
     let session: WorkoutSession
 
     var body: some View {
