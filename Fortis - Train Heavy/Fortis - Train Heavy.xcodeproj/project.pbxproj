@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A98971262FA30B880037BD54 /* MuscleMap in Frameworks */ = {isa = PBXBuildFile; productRef = A98971252FA30B880037BD54 /* MuscleMap */; };
+		FB0001010000000000000001 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = FB0001020000000000000001 /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A98971262FA30B880037BD54 /* MuscleMap in Frameworks */,
+				FB0001010000000000000001 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = "Fortis - Train Heavy";
 			packageProductDependencies = (
 				A98971252FA30B880037BD54 /* MuscleMap */,
+				FB0001020000000000000001 /* Supabase */,
 			);
 			productName = "Fortis - Train Heavy";
 			productReference = A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */,
+				FB0001030000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A989709C2FA2A4A80037BD54 /* Products */;
@@ -347,6 +351,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		FB0001030000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 		A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/melihcolpan/MuscleMap.git";
@@ -358,6 +370,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		FB0001020000000000000001 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FB0001030000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
 		A98971252FA30B880037BD54 /* MuscleMap */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */;

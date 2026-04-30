@@ -129,28 +129,22 @@ struct SignInView: View {
 
     private func attemptSignIn() {
         errorText = nil
-        guard !identifier.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorText = "Enter your email or phone number."; return
-        }
-        guard password.count >= 8 else {
-            errorText = "Password must be at least 8 characters."; return
-        }
+        let email = identifier.trimmingCharacters(in: .whitespaces)
+        guard !email.isEmpty else { errorText = "Enter your email."; return }
+        guard password.count >= 8 else { errorText = "Password must be at least 8 characters."; return }
+
         isLoading = true
-
-        // Look up matching profile in SwiftData
-        let id = identifier.trimmingCharacters(in: .whitespaces).lowercased()
-        let descriptor = FetchDescriptor<UserProfile>()
-        let profiles = (try? modelContext.fetch(descriptor)) ?? []
-        let match = profiles.first { profile in
-            (profile.email?.lowercased() == id) ||
-            (profile.phoneNumber?.filter { $0.isNumber } == id.filter { $0.isNumber })
-        }
-
-        isLoading = false
-        if let profile = match {
-            authManager.completeSignIn(userID: profile.id.uuidString)
-        } else {
-            errorText = "No account found with those credentials."
+        Task {
+            do {
+                let userId = try await SupabaseService.shared.signInWithEmail(
+                    email: email,
+                    password: password
+                )
+                authManager.completeSignIn(userID: userId.uuidString)
+            } catch {
+                errorText = error.localizedDescription
+            }
+            isLoading = false
         }
     }
 }

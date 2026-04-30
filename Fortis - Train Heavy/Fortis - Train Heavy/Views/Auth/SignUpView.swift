@@ -385,9 +385,35 @@ struct SignUpView: View {
             goals:        Array(selectedGoals),
             authProvider: contactMethod == .email ? "email" : "phone"
         )
+
+        // Save locally first, then register with Supabase in the background
         modelContext.insert(profile)
         try? modelContext.save()
-        authManager.completeSignIn(userID: profile.id.uuidString)
+
+        Task {
+            do {
+                if contactMethod == .email {
+                    let userId = try await SupabaseService.shared.signUpWithEmail(
+                        email: email.lowercased(),
+                        password: password
+                    )
+                    try? await SupabaseService.shared.createProfile(
+                        userId: userId,
+                        username: profile.username,
+                        fullName: profile.fullName
+                    )
+                    authManager.completeSignIn(userID: userId.uuidString)
+                } else {
+                    // Phone sign-up: fall back to local-only for now
+                    authManager.completeSignIn(userID: profile.id.uuidString)
+                }
+            } catch {
+                // Supabase signup failed — still let the user in with local account
+                validationError = "Account created locally. Sync failed: \(error.localizedDescription)"
+                authManager.completeSignIn(userID: profile.id.uuidString)
+            }
+            isCreating = false
+        }
     }
 
     // MARK: - Reusable Sub-views
