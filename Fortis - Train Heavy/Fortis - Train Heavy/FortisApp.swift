@@ -21,7 +21,7 @@ struct FortisApp: App {
         do {
             modelContainer = try makeContainer()
         } catch {
-            removeDefaultStore()
+            Self.removeDefaultStore()
             do {
                 modelContainer = try makeContainer()
             } catch {
@@ -36,7 +36,7 @@ struct FortisApp: App {
         }
     }
 
-    private func removeDefaultStore() {
+    private static func removeDefaultStore() {
         guard let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
         let storeURL = appSupportURL.appendingPathComponent("default.store")
         let files = [storeURL, storeURL.appendingPathExtension("-shm"), storeURL.appendingPathExtension("-wal")]
