@@ -10,6 +10,8 @@ final class Exercise {
     var primaryMuscles: [String]
     var secondaryMuscles: [String]
     var instructions: String
+    var mediaImageName: String?
+    var mediaVideoName: String?
     var isCustom: Bool
 
     init(
@@ -20,6 +22,8 @@ final class Exercise {
         primaryMuscles: [String],
         secondaryMuscles: [String] = [],
         instructions: String = "",
+        mediaImageName: String? = nil,
+        mediaVideoName: String? = nil,
         isCustom: Bool = false
     ) {
         self.id = id
@@ -29,6 +33,8 @@ final class Exercise {
         self.primaryMuscles = primaryMuscles
         self.secondaryMuscles = secondaryMuscles
         self.instructions = instructions
+        self.mediaImageName = mediaImageName
+        self.mediaVideoName = mediaVideoName
         self.isCustom = isCustom
     }
 }

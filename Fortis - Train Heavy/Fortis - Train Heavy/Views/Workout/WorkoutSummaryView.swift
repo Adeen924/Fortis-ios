@@ -32,7 +32,7 @@ struct WorkoutSummaryView: View {
     private var combinedSecondaryMuscles: [String] {
         var muscles = Set<String>()
         for ex in session.workoutExercises {
-            muscles.formUnion(ex.secondaryMuscles ?? [])
+            muscles.formUnion(ex.secondaryMuscles)
         }
         return Array(muscles)
     }

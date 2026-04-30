@@ -96,7 +96,10 @@ struct SuggestedWorkoutView: View {
             
             VStack(spacing: 10) {
                 ForEach(suggestedWorkout.exercises) { recommendation in
-                    ExerciseRecommendationCard(recommendation: recommendation)
+                    NavigationLink(destination: ExerciseDetailView(exercise: recommendation.exercise, recommendation: recommendation)) {
+                        ExerciseRecommendationCard(recommendation: recommendation)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

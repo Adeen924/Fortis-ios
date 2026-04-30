@@ -102,7 +102,7 @@ struct HomeView: View {
         var muscles = Set<String>()
         for session in weeklySessions {
             for ex in session.workoutExercises {
-                muscles.formUnion(ex.secondaryMuscles ?? [])
+                muscles.formUnion(ex.secondaryMuscles)
             }
         }
         return Array(muscles)

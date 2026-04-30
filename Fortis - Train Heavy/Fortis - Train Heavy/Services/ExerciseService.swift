@@ -42,6 +42,8 @@ enum ExerciseService {
         let primaryMuscles: [String]
         let secondaryMuscles: [String]
         let instructions: String
+        let mediaImageName: String?
+        let mediaVideoName: String?
         let isCustom: Bool
 
         func toExercise() -> Exercise {
@@ -52,6 +54,8 @@ enum ExerciseService {
                 primaryMuscles: primaryMuscles,
                 secondaryMuscles: secondaryMuscles,
                 instructions: instructions,
+                mediaImageName: mediaImageName,
+                mediaVideoName: mediaVideoName,
                 isCustom: isCustom
             )
         }
