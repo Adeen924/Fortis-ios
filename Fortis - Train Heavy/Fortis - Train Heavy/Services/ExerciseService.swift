@@ -5,7 +5,7 @@ enum ExerciseService {
 
     // MARK: - Seed
 
-    static func seedIfNeeded(context: ModelContext) {
+    static func seedIfNeeded(context: ModelContext) async {
         let descriptor = FetchDescriptor<Exercise>()
         let count = (try? context.fetchCount(descriptor)) ?? 0
         guard count == 0 else { return }

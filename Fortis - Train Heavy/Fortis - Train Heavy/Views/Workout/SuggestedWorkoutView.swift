@@ -190,7 +190,7 @@ struct ExerciseRecommendationCard: View {
                 
                 Spacer()
                 
-                VStack(alignment: .leadingAlignment, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("INTENSITY")
                         .font(.system(size: 8, weight: .bold))
                         .tracking(2)

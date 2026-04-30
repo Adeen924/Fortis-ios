@@ -33,8 +33,8 @@ struct FortisApp: App {
 
         let container = modelContainer
         Task.detached(priority: .utility) {
-            let context = await MainActor.run { ModelContext(container) }
-            ExerciseService.seedIfNeeded(context: context)
+            let context = ModelContext(container)
+            await ExerciseService.seedIfNeeded(context: context)
         }
     }
 
@@ -78,8 +78,8 @@ struct FortisApp: App {
                 await validateSession()
             }
             // ── Auto-sync when connectivity is restored ───────────────────────
-            .onChange(of: NetworkMonitor.shared.isConnected) { wasConnected, isNowConnected in
-                if !wasConnected && isNowConnected && authManager.isAuthenticated {
+            .onChange(of: NetworkMonitor.shared.isConnected) { oldValue, newValue in
+                if !oldValue && newValue && authManager.isAuthenticated {
                     let ctx = modelContainer.mainContext
                     Task {
                         await SupabaseService.shared.syncPendingSessions(context: ctx)
