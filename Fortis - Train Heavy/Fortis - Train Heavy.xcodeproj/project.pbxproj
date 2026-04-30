@@ -12,7 +12,6 @@
 
 /* Begin PBXFileReference section */
 		A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fortis - Train Heavy.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A98971392FA327E20037BD54 /* Fortis - Train Heavy Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fortis - Train Heavy Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,13 +31,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A98971362FA327E20037BD54 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -54,7 +46,6 @@
 			isa = PBXGroup;
 			children = (
 				A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */,
-				A98971392FA327E20037BD54 /* Fortis - Train Heavy Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -85,25 +76,6 @@
 			productReference = A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A98971382FA327E20037BD54 /* Fortis - Train Heavy Watch App */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A98971412FA327E40037BD54 /* Build configuration list for PBXNativeTarget "Fortis - Train Heavy Watch App" */;
-			buildPhases = (
-				A98971352FA327E20037BD54 /* Sources */,
-				A98971362FA327E20037BD54 /* Frameworks */,
-				A98971372FA327E20037BD54 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "Fortis - Train Heavy Watch App";
-			packageProductDependencies = (
-			);
-			productName = "Fortis - Train Heavy Watch App";
-			productReference = A98971392FA327E20037BD54 /* Fortis - Train Heavy Watch App.app */;
-			productType = "com.apple.product-type.application";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -115,9 +87,6 @@
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					A989709A2FA2A4A80037BD54 = {
-						CreatedOnToolsVersion = 26.4.1;
-					};
-					A98971382FA327E20037BD54 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -140,7 +109,6 @@
 			projectRoot = "";
 			targets = (
 				A989709A2FA2A4A80037BD54 /* Fortis - Train Heavy */,
-				A98971382FA327E20037BD54 /* Fortis - Train Heavy Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -153,24 +121,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A98971372FA327E20037BD54 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A98970972FA2A4A80037BD54 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A98971352FA327E20037BD54 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -369,72 +323,6 @@
 			};
 			name = Release;
 		};
-		A98971422FA327E40037BD54 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XKQMYRH29C;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Fortis - Train Heavy";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = .watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.4;
-			};
-			name = Debug;
-		};
-		A98971432FA327E40037BD54 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XKQMYRH29C;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Fortis - Train Heavy";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = .watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.4;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -452,15 +340,6 @@
 			buildConfigurations = (
 				A98970A72FA2A4AA0037BD54 /* Debug */,
 				A98970A82FA2A4AA0037BD54 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		A98971412FA327E40037BD54 /* Build configuration list for PBXNativeTarget "Fortis - Train Heavy Watch App" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A98971422FA327E40037BD54 /* Debug */,
-				A98971432FA327E40037BD54 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
