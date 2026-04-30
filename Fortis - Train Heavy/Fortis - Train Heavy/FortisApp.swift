@@ -34,8 +34,6 @@ struct FortisApp: App {
             let context = await MainActor.run { ModelContext(container) }
             ExerciseService.seedIfNeeded(context: context)
         }
-
-        _ = WatchSessionManager.shared
     }
 
     private static func removeDefaultStore() {
