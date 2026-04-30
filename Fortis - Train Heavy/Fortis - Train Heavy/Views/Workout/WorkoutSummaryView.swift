@@ -11,6 +11,7 @@ struct PersonalRecord: Identifiable {
 }
 
 struct WorkoutSummaryView: View {
+    @EnvironmentObject private var appSettings: AppSettings
     let session: WorkoutSession
     let onDismiss: () -> Void
 
@@ -89,6 +90,7 @@ struct WorkoutSummaryView: View {
             .navigationTitle(session.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .environmentObject(appSettings)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("DONE", action: onDismiss)
@@ -133,9 +135,16 @@ struct WorkoutSummaryView: View {
     }
 
     private var volumeFormatted: String {
-        let v = session.totalVolume
-        if v >= 1000 { return String(format: "%.1fk lbs", v / 1000) }
-        return String(format: "%.0f lbs", v)
+        return formattedWeight(session.totalVolume)
+    }
+
+    private func formattedWeight(_ value: Double) -> String {
+        let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1000 {
+            return String(format: "%.1fk %@", converted / 1000, symbol)
+        }
+        return String(format: "%.0f %@", converted, symbol)
     }
 
     // MARK: - Exercise Breakdown
@@ -165,11 +174,11 @@ struct WorkoutSummaryView: View {
                             Text("PR: \(record.exerciseName)")
                                 .font(.subheadline.bold())
                                 .foregroundStyle(.romanParchment)
-                            Text("\(String(format: "%.1f", record.weight)) lbs × \(record.reps) reps")
+                            Text("\(formattedWeight(record.weight)) × \(record.reps) reps")
                                 .font(.caption)
                                 .foregroundStyle(.romanGold)
                             if record.previousMax > 0 {
-                                Text("Previous: \(String(format: "%.1f", record.previousMax)) lbs")
+                                Text("Previous: \(formattedWeight(record.previousMax))")
                                     .font(.caption2)
                                     .foregroundStyle(.romanParchmentDim)
                             }
@@ -361,6 +370,7 @@ struct SummaryStatCard: View {
 
 // MARK: - Exercise Summary Row
 struct ExerciseSummaryRow: View {
+    @EnvironmentObject private var appSettings: AppSettings
     let workoutExercise: WorkoutExercise
 
     var body: some View {
@@ -380,7 +390,7 @@ struct ExerciseSummaryRow: View {
                         .font(.caption)
                         .foregroundStyle(.romanParchmentDim)
                         .frame(width: 40, alignment: .leading)
-                    Text(String(format: "%.1f lbs", set.weight))
+                    Text(formattedWeight(set.weight))
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.romanParchment)
                     Text("×")
@@ -399,8 +409,16 @@ struct ExerciseSummaryRow: View {
 
     private var volumeFormatted: String {
         let v = workoutExercise.totalVolume
-        if v >= 1000 { return String(format: "%.1fk lbs", v / 1000) }
-        return String(format: "%.0f lbs", v)
+        let converted = appSettings.weightUnit == .kg ? v * 0.45359237 : v
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1000 { return String(format: "%.1fk %@", converted / 1000, symbol) }
+        return String(format: "%.0f %@", converted, symbol)
+    }
+
+    private func formattedWeight(_ value: Double) -> String {
+        let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
+        let symbol = appSettings.weightUnit.symbol
+        return String(format: "%.1f %@", converted, symbol)
     }
 }
 

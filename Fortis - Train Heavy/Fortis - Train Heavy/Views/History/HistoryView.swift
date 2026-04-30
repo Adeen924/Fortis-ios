@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct HistoryView: View {
+    @EnvironmentObject private var appSettings: AppSettings
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
     @State private var selectedSession: WorkoutSession?
 
@@ -115,8 +116,10 @@ struct HistoryRow: View {
 
     private var volumeFormatted: String {
         let v = session.totalVolume
-        if v >= 1000 { return String(format: "%.1fk lbs", v / 1000) }
-        return String(format: "%.0f lbs", v)
+        let converted = appSettings.weightUnit == .kg ? v * 0.45359237 : v
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1000 { return String(format: "%.1fk %@", converted / 1000, symbol) }
+        return String(format: "%.0f %@", converted, symbol)
     }
 
     private var musclesString: String {

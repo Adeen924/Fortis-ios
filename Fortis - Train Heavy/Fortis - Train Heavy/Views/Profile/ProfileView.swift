@@ -5,12 +5,17 @@ import PhotosUI
 struct ProfileView: View {
     @Environment(AuthManager.self) private var authManager
     @Environment(\.modelContext) private var context
+    @EnvironmentObject private var appSettings: AppSettings
+    @Environment(\.openURL) private var openURL
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
     @Query private var profiles: [UserProfile]
     @State private var showingSignOutAlert = false
     @State private var showingDeleteAccountAlert = false
     @State private var showingPhotoPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var showingUnitsDialog = false
+    @State private var showingURLFailureAlert = false
+    @State private var urlFailureMessage = ""
 
     private var profile: UserProfile? { profiles.first }
 
@@ -86,10 +91,18 @@ struct ProfileView: View {
 
                     // Settings
                     Section {
-                        settingsRow("Notifications",        icon: "bell.fill")
-                        settingsRow("Units (lbs / kg)",     icon: "scalemass.fill")
-                        settingsRow("Apple Health",         icon: "heart.fill")
-                        settingsRow("Apple Watch",          icon: "applewatch")
+                        NavigationLink(destination: NotificationsView()) {
+                            settingsRow("Notifications", icon: "bell.fill")
+                        }
+                        Button(action: { showingUnitsDialog = true }) {
+                            settingsRow("Units (\(appSettings.weightUnit.symbol))", icon: "scalemass.fill")
+                        }
+                        Button(action: openAppleHealth) {
+                            settingsRow("Apple Health", icon: "heart.fill")
+                        }
+                        Button(action: openAppleWatch) {
+                            settingsRow("Apple Watch", icon: "applewatch")
+                        }
                     } header: { sectionHeader("SETTINGS") }
                     .listRowBackground(Color.romanSurface)
                     .listRowSeparatorTint(Color.romanBorder)
@@ -127,6 +140,18 @@ struct ProfileView: View {
                 Text("This will permanently delete all your data, including workouts, exercises, and profile information. This action cannot be undone.")
             }
             .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared())
+            .confirmationDialog("Choose your preferred units", isPresented: $showingUnitsDialog) {
+                ForEach(WeightUnit.allCases) { unit in
+                    Button(unit.displayName) {
+                        appSettings.weightUnit = unit
+                    }
+                }
+            }
+            .alert("Unable to open app", isPresented: $showingURLFailureAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(urlFailureMessage)
+            }
             .onChange(of: selectedPhotoItem) { oldValue, newValue in
                 Task {
                     if let data = try? await newValue?.loadTransferable(type: Data.self), let profile = profile {
@@ -169,9 +194,7 @@ struct ProfileView: View {
 
     private var totalVolumeFormatted: String {
         let v = sessions.reduce(0.0) { $0 + $1.totalVolume }
-        if v >= 1_000_000 { return String(format: "%.1fM lbs", v / 1_000_000) }
-        if v >= 1000      { return String(format: "%.1fk lbs", v / 1000) }
-        return String(format: "%.0f lbs", v)
+        return formattedVolume(v)
     }
 
     private var totalExercises: Int { sessions.flatMap { $0.workoutExercises }.count }
@@ -188,8 +211,60 @@ struct ProfileView: View {
         }
     }
 
+    private func formattedVolume(_ value: Double) -> String {
+        let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1_000_000 { return String(format: "%.1fM %@", converted / 1_000_000, symbol) }
+        if abs(converted) >= 1000      { return String(format: "%.1fk %@", converted / 1000, symbol) }
+        return String(format: "%.0f %@", converted, symbol)
+    }
+
     private func settingsRow(_ label: String, icon: String) -> some View {
         Label(label, systemImage: icon).foregroundStyle(.romanParchment)
+    }
+
+    private func openAppleHealth() {
+        guard let url = URL(string: "x-apple-health://") else { return }
+        openURL(url) { result in
+            switch result {
+            case .success: break
+            case .failure:
+                urlFailureMessage = "Unable to open the Health app."
+                showingURLFailureAlert = true
+            }
+        }
+    }
+
+    private func openAppleWatch() {
+        guard let url = URL(string: "x-apple-watch://") else { return }
+        openURL(url) { result in
+            switch result {
+            case .success: break
+            case .failure:
+                urlFailureMessage = "Unable to open the Watch app."
+                showingURLFailureAlert = true
+            }
+        }
+    }
+}
+
+struct NotificationsView: View {
+    @AppStorage("fortis_notifications_enabled") private var enabled = true
+    @AppStorage("fortis_notifications_daily_summary") private var dailySummary = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text("Notifications")) {
+                    Toggle("Enable Notifications", isOn: $enabled)
+                    Toggle("Daily Workout Summary", isOn: $dailySummary)
+                        .disabled(!enabled)
+                }
+            }
+            .navigationTitle("Notifications")
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+        .preferredColorScheme(.dark)
     }
 }
 

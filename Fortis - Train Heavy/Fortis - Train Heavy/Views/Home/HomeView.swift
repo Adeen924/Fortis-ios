@@ -3,6 +3,7 @@ import SwiftData
 
 struct HomeView: View {
     @Environment(\.showWorkout) private var showWorkout
+    @EnvironmentObject private var appSettings: AppSettings
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
 
     var body: some View {
@@ -30,7 +31,7 @@ struct HomeView: View {
     private var quickStatsSection: some View {
         HStack(spacing: 10) {
             RomanStatCard(title: "THIS WEEK",   value: "\(weeklyWorkoutCount)", unit: "sessions")
-            RomanStatCard(title: "VOLUME",      value: weeklyVolumeFormatted,   unit: "lbs")
+            RomanStatCard(title: "VOLUME",      value: weeklyVolumeFormatted,   unit: appSettings.weightUnit.symbol)
             RomanStatCard(title: "STREAK",      value: "\(currentStreak)",      unit: "days")
         }
     }
@@ -41,8 +42,9 @@ struct HomeView: View {
 
     private var weeklyVolumeFormatted: String {
         let v = sessions.filter { $0.startDate >= currentWeekStart }.reduce(0.0) { $0 + $1.totalVolume }
-        if v >= 1000 { return String(format: "%.1fk", v / 1000) }
-        return String(format: "%.0f", v)
+        let converted = appSettings.weightUnit == .kg ? v * 0.45359237 : v
+        if abs(converted) >= 1000 { return String(format: "%.1fk", converted / 1000) }
+        return String(format: "%.0f", converted)
     }
 
     private var currentStreak: Int {

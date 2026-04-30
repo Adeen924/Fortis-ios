@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct AnalyticsView: View {
+    @EnvironmentObject private var appSettings: AppSettings
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
     @Query private var profiles: [UserProfile]
 
@@ -166,11 +167,20 @@ struct AnalyticsView: View {
 
         return [
             ProgressStat(title: "Total Workouts", value: "\(totalWorkouts)"),
-            ProgressStat(title: "Total Volume", value: String(format: "%.0f lbs", totalVolume)),
-            ProgressStat(title: "Average Volume per Workout", value: String(format: "%.0f lbs", avgVolume)),
+            ProgressStat(title: "Total Volume", value: formattedWeight(totalVolume)),
+            ProgressStat(title: "Average Volume per Workout", value: formattedWeight(avgVolume)),
             ProgressStat(title: "Total Exercises Performed", value: "\(totalExercises)"),
             ProgressStat(title: "Unique Exercises", value: "\(uniqueExercises)")
         ]
+    }
+
+    private func formattedWeight(_ value: Double) -> String {
+        let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1000 {
+            return String(format: "%.1fk %@", converted / 1000, symbol)
+        }
+        return String(format: "%.0f %@", converted, symbol)
     }
 }
 

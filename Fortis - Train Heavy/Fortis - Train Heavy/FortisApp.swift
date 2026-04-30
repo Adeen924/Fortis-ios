@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct FortisApp: App {
     let modelContainer: ModelContainer
+    @StateObject private var appSettings = AppSettings.shared
     @State private var authManager      = AuthManager()
     @State private var isCheckingSession = true   // show splash while validating JWT
 
@@ -69,6 +70,7 @@ struct FortisApp: App {
             }
             .modelContainer(modelContainer)
             .environment(authManager)
+            .environmentObject(appSettings)
             .animation(.easeInOut(duration: 0.35), value: isCheckingSession)
             .animation(.easeInOut(duration: 0.4),  value: authManager.isAuthenticated)
             // ── Session validation on launch ──────────────────────────────────

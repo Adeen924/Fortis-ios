@@ -23,6 +23,11 @@ final class UserProfile {
     var heightFormatted: String { "\(heightFeet)'\(heightInches)\"" }
     var weightFormatted: String { String(format: "%.1f lbs", weightLbs) }
 
+    func weightFormatted(for unit: WeightUnit) -> String {
+        let value = unit == .kg ? weightLbs * 0.45359237 : weightLbs
+        return String(format: "%.1f %@", value, unit.symbol)
+    }
+
     init(
         id: UUID = UUID(),
         firstName: String = "",

@@ -3,6 +3,7 @@ import SwiftData
 
 struct ActiveWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var appSettings: AppSettings
     @Bindable var viewModel: WorkoutViewModel
     let onDismiss: () -> Void
 
@@ -38,7 +39,7 @@ struct ActiveWorkoutView: View {
                 Button("Finish", role: .none) { finishWorkout() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Save \(viewModel.totalCompletedSets) completed sets · \(Int(viewModel.totalVolume).formatted()) lbs total.")
+                Text("Save \(viewModel.totalCompletedSets) completed sets · \(formattedWeight(viewModel.totalVolume)) total.")
             }
             .alert("Cancel Workout?", isPresented: $showingCancelAlert) {
                 Button("Discard", role: .destructive) { onDismiss() }
@@ -193,6 +194,7 @@ struct ActiveWorkoutView: View {
 
 // MARK: - Exercise Log Card
 struct ExerciseLogCard: View {
+    @EnvironmentObject private var appSettings: AppSettings
     let entry: WorkoutExerciseEntry
     @Bindable var viewModel: WorkoutViewModel
     let onDelete: () -> Void
@@ -218,7 +220,7 @@ struct ExerciseLogCard: View {
                 }
                 Spacer()
                 if entry.totalVolume > 0 {
-                    Text(String(format: "%.0f lbs", entry.totalVolume))
+                    Text(formattedWeight(entry.totalVolume))
                         .font(.caption.bold())
                         .foregroundStyle(.romanGold)
                         .padding(.trailing, 4)
@@ -239,7 +241,7 @@ struct ExerciseLogCard: View {
             // Sets header
             HStack {
                 Text("SET").frame(width: 36, alignment: .leading)
-                Text("LBS").frame(maxWidth: .infinity)
+                Text(appSettings.weightUnit.symbol.uppercased()).frame(maxWidth: .infinity)
                 Text("REPS").frame(maxWidth: .infinity)
                 Text("").frame(width: 44)
             }
@@ -298,6 +300,7 @@ struct ExerciseLogCard: View {
 
 // MARK: - Set Row
 struct SetRow: View {
+    @EnvironmentObject private var appSettings: AppSettings
     let set: SetEntry
     let onRedo: () -> Void
     let onUpdate: (Int, Double) -> Void
@@ -330,7 +333,9 @@ struct SetRow: View {
                 .background(Color.romanSurfaceHigh)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .onChange(of: weightText) { _, new in
-                    if let w = Double(new) { onUpdate(Int(repsText) ?? set.reps, w) }
+                    if let displayWeight = Double(new), let storedWeight = storedWeight(from: displayWeight) {
+                        onUpdate(Int(repsText) ?? set.reps, storedWeight)
+                    }
                 }
 
             TextField("0", text: $repsText)
@@ -343,7 +348,10 @@ struct SetRow: View {
                 .background(Color.romanSurfaceHigh)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .onChange(of: repsText) { _, new in
-                    if let r = Int(new) { onUpdate(r, Double(weightText) ?? set.weight) }
+                    if let r = Int(new) {
+                        let displayWeight = Double(weightText) ?? (appSettings.weightUnit == .kg ? set.weight * 0.45359237 : set.weight)
+                        onUpdate(r, storedWeight(from: displayWeight) ?? set.weight)
+                    }
                 }
 
             Button(action: onRedo) {
@@ -357,5 +365,17 @@ struct SetRow: View {
         .padding(.vertical, 6)
         .background(set.isCompleted ? Color.romanGoldDim.opacity(0.12) : Color.clear)
         .animation(.easeInOut(duration: 0.15), value: set.isCompleted)
+        .onAppear { if set.weight > 0 { weightText = formattedDisplayWeight() } }
+        .onChange(of: appSettings.weightUnit) { _ in if set.weight > 0 { weightText = formattedDisplayWeight() } }
+    }
+
+    private func formattedDisplayWeight() -> String {
+        let display = appSettings.weightUnit == .kg ? set.weight * 0.45359237 : set.weight
+        return String(format: "%.1f", display)
+    }
+
+    private func storedWeight(from displayWeight: Double) -> Double? {
+        let stored = appSettings.weightUnit == .kg ? displayWeight / 0.45359237 : displayWeight
+        return stored
     }
 }
