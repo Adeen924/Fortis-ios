@@ -9,6 +9,7 @@ struct WelcomeView: View {
     @State private var googleAlert     = false
 
     var body: some View {
+        @Bindable var authManager = authManager
         ZStack {
             Color.romanBackground.ignoresSafeArea()
 
