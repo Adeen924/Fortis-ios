@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct PersonalRecord: Identifiable {
     let id = UUID()
@@ -15,6 +16,9 @@ struct WorkoutSummaryView: View {
 
     @Query private var profiles: [UserProfile]
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var pastSessions: [WorkoutSession]
+
+    @State private var showShareSheet = false
+    @State private var shareItems: [Any] = []
 
     private var combinedPrimaryMuscles: [String] {
         var muscles = Set<String>()
@@ -100,13 +104,13 @@ struct WorkoutSummaryView: View {
     // MARK: - Hero
     private var summaryHero: some View {
         VStack(spacing: 14) {
-            MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
-                .frame(height: 200)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .padding(.horizontal)
             Text(session.name)
                 .font(.title2.bold())
                 .foregroundStyle(.romanParchment)
+            MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
+                .frame(height: 250)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal)
         }
         .padding(.top, 8)
     }
@@ -184,16 +188,62 @@ struct WorkoutSummaryView: View {
 
     // MARK: - Share
     private var shareSection: some View {
-        Button {} label: {
-            Label("Share to Feed", systemImage: "square.and.arrow.up")
-                .font(.system(size: 13, weight: .black))
-                .tracking(2)
-                .foregroundStyle(.romanBackground)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(LinearGradient.romanGoldGradient)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+        HStack(spacing: 12) {
+            Button {} label: {
+                Label("Share to Feed", systemImage: "person.2.fill")
+                    .font(.system(size: 12, weight: .black))
+                    .tracking(1)
+                    .foregroundStyle(.romanBackground)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(LinearGradient.romanGoldGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            Button(action: shareExternally) {
+                Label("Share Externally", systemImage: "square.and.arrow.up")
+                    .font(.system(size: 12, weight: .black))
+                    .tracking(1)
+                    .foregroundStyle(.romanBackground)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(LinearGradient.romanGoldGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
         }
+        .sheet(isPresented: $showShareSheet) {
+            ActivityView(activityItems: shareItems)
+                .ignoresSafeArea()
+        }
+    }
+
+    private func shareExternally() {
+        var items: [Any] = [shareText]
+        if let image = createShareSnapshot() {
+            items.insert(image, at: 0)
+        }
+        shareItems = items
+        showShareSheet = true
+    }
+
+    private func createShareSnapshot() -> UIImage? {
+        let shareCard = WorkoutShareCard(
+            title: session.name,
+            duration: durationFormatted,
+            volume: volumeFormatted,
+            exerciseCount: session.workoutExercises.count,
+            muscles: combinedPrimaryMuscles,
+            primaryMuscles: combinedPrimaryMuscles,
+            secondaryMuscles: combinedSecondaryMuscles
+        )
+        let renderer = ImageRenderer(content: shareCard)
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage
+    }
+
+    private var shareText: String {
+        let muscles = combinedPrimaryMuscles.joined(separator: ", ")
+        return "Just completed \(session.name)! 💪\n\nTotal Volume: \(volumeFormatted)\nDuration: \(durationFormatted)\nExercises: \(session.workoutExercises.count)\nMuscles Trained: \(muscles)\n\n#Fortis #Workout #Fitness"
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -202,6 +252,82 @@ struct WorkoutSummaryView: View {
             .tracking(3)
             .foregroundStyle(.romanParchmentDim)
     }
+}
+
+struct WorkoutShareCard: View {
+    let title: String
+    let duration: String
+    let volume: String
+    let exerciseCount: Int
+    let muscles: [String]
+    let primaryMuscles: [String]
+    let secondaryMuscles: [String]
+
+    var body: some View {
+        ZStack {
+            Color.black
+            VStack(spacing: 18) {
+                Text(title)
+                    .font(.system(size: 32, weight: .heavy))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                MuscleMapView(primaryMuscles: primaryMuscles, secondaryMuscles: secondaryMuscles)
+                    .frame(height: 380)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .padding(.horizontal, 16)
+
+                VStack(spacing: 10) {
+                    HStack {
+                        ShareStatLabel(title: "Duration", value: duration)
+                        ShareStatLabel(title: "Volume", value: volume)
+                    }
+                    HStack {
+                        ShareStatLabel(title: "Exercises", value: "\(exerciseCount)")
+                        ShareStatLabel(title: "Muscles", value: muscles.joined(separator: ", "))
+                    }
+                }
+                .padding(.horizontal, 18)
+
+                Text("#Fortis #Workout #Fitness")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.top, 12)
+            }
+            .padding(20)
+        }
+        .frame(width: 1080, height: 1620)
+    }
+}
+
+struct ShareStatLabel: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.7))
+            Text(value)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .minimumScaleFactor(0.65)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Summary Stat Card
