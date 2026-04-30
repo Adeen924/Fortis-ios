@@ -3,7 +3,8 @@ import SwiftData
 import Combine
 
 @Observable
-final class WorkoutViewModel {
+final class WorkoutViewModel: Identifiable {
+    let id = UUID()
     // MARK: - State
     var workoutName: String = "Morning Workout"
     var startTime: Date = Date()

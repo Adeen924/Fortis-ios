@@ -4,7 +4,6 @@ import SwiftData
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Exercise.name) private var allExercises: [Exercise]
-
     let onSelect: (Exercise) -> Void
 
     @State private var searchText = ""
@@ -12,61 +11,74 @@ struct ExercisePickerView: View {
     @State private var selectedExercise: Exercise? = nil
 
     private var categories: [String] {
-        let cats = Set(allExercises.map { $0.category })
-        return ["All"] + cats.sorted()
+        ["All"] + Set(allExercises.map { $0.category }).sorted()
     }
 
     private var filteredExercises: [Exercise] {
-        allExercises.filter { exercise in
-            let matchesSearch = searchText.isEmpty ||
-                exercise.name.localizedCaseInsensitiveContains(searchText) ||
-                exercise.primaryMuscles.joined().localizedCaseInsensitiveContains(searchText)
-            let matchesCategory = selectedCategory == nil || selectedCategory == "All" ||
-                exercise.category == selectedCategory
-            return matchesSearch && matchesCategory
+        allExercises.filter { ex in
+            let matchSearch = searchText.isEmpty
+                || ex.name.localizedCaseInsensitiveContains(searchText)
+                || ex.primaryMuscles.joined().localizedCaseInsensitiveContains(searchText)
+            let matchCat = selectedCategory == nil || selectedCategory == "All"
+                || ex.category == selectedCategory
+            return matchSearch && matchCat
         }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Category filter chips
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(categories, id: \.self) { cat in
-                            CategoryChip(
-                                title: cat,
-                                isSelected: (cat == "All" && selectedCategory == nil) || selectedCategory == cat
-                            ) {
-                                selectedCategory = cat == "All" ? nil : cat
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                VStack(spacing: 0) {
+                    // Category chips
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(categories, id: \.self) { cat in
+                                CategoryChip(
+                                    title: cat,
+                                    isSelected: (cat == "All" && selectedCategory == nil) || selectedCategory == cat
+                                ) {
+                                    selectedCategory = cat == "All" ? nil : cat
+                                }
                             }
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                }
 
-                Divider()
+                    Rectangle().fill(Color.romanBorder).frame(height: 0.5)
 
-                // Exercise list
-                if filteredExercises.isEmpty {
-                    ContentUnavailableView("No Exercises Found", systemImage: "magnifyingglass",
-                                          description: Text("Try a different search or category."))
-                } else {
-                    List(filteredExercises) { exercise in
-                        ExercisePickerRow(exercise: exercise) {
-                            selectedExercise = exercise
+                    if filteredExercises.isEmpty {
+                        VStack(spacing: 12) {
+                            Spacer()
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 36))
+                                .foregroundStyle(.romanGoldDim)
+                            Text("No exercises found")
+                                .foregroundStyle(.romanParchmentDim)
+                            Spacer()
                         }
+                    } else {
+                        List(filteredExercises) { exercise in
+                            ExercisePickerRow(exercise: exercise) {
+                                selectedExercise = exercise
+                            }
+                            .listRowBackground(Color.romanSurface)
+                            .listRowSeparatorTint(Color.romanBorder)
+                        }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.plain)
                 }
             }
-            .navigationTitle("Add Exercise")
+            .navigationTitle("ADD EXERCISE")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .searchable(text: $searchText, prompt: "Search exercises or muscles")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
+                        .foregroundStyle(.romanParchmentDim)
                 }
             }
             .sheet(item: $selectedExercise) { exercise in
@@ -77,6 +89,7 @@ struct ExercisePickerView: View {
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -88,13 +101,15 @@ struct CategoryChip: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.subheadline.bold())
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .tracking(2)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.orange : Color(.secondarySystemBackground))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .padding(.vertical, 7)
+                .background(isSelected ? Color.romanGold : Color.romanSurface)
+                .foregroundStyle(isSelected ? Color.romanBackground : Color.romanParchmentDim)
                 .clipShape(Capsule())
+                .overlay(Capsule().stroke(isSelected ? Color.clear : Color.romanBorder, lineWidth: 0.5))
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: isSelected)
@@ -109,32 +124,30 @@ struct ExercisePickerRow: View {
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 12) {
-                // Category icon
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 9)
                         .fill(categoryColor(exercise.category).opacity(0.15))
-                        .frame(width: 40, height: 40)
+                        .frame(width: 42, height: 42)
                     Image(systemName: categoryIcon(exercise.category))
                         .font(.system(size: 18))
                         .foregroundStyle(categoryColor(exercise.category))
                 }
-
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(exercise.name)
                         .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.romanParchment)
                     HStack(spacing: 4) {
                         Text(exercise.equipmentType)
                         Text("·")
                         Text(exercise.primaryMuscles.joined(separator: ", "))
                     }
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.romanParchmentDim)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.romanBorder)
             }
             .contentShape(Rectangle())
         }
@@ -143,15 +156,15 @@ struct ExercisePickerRow: View {
 
     func categoryColor(_ cat: String) -> Color {
         switch cat {
-        case "Chest":     return .red
-        case "Back":      return .blue
-        case "Shoulders": return .purple
-        case "Biceps":    return .orange
-        case "Triceps":   return .yellow
-        case "Legs":      return .green
-        case "Glutes":    return .pink
-        case "Core":      return .teal
-        default:          return .gray
+        case "Chest":     return .romanCrimson
+        case "Back":      return Color(red: 0.3, green: 0.5, blue: 0.9)
+        case "Shoulders": return Color(red: 0.6, green: 0.3, blue: 0.8)
+        case "Biceps":    return .romanGold
+        case "Triceps":   return .romanBronze
+        case "Legs":      return Color(red: 0.3, green: 0.7, blue: 0.4)
+        case "Glutes":    return Color(red: 0.9, green: 0.4, blue: 0.6)
+        case "Core":      return Color(red: 0.2, green: 0.7, blue: 0.7)
+        default:          return .romanParchmentDim
         }
     }
 
@@ -170,7 +183,7 @@ struct ExercisePickerRow: View {
     }
 }
 
-// MARK: - Exercise Detail Confirm (muscle diagram confirmation)
+// MARK: - Exercise Detail Confirm
 struct ExerciseDetailConfirmView: View {
     @Environment(\.dismiss) private var dismiss
     let exercise: Exercise
@@ -178,73 +191,81 @@ struct ExerciseDetailConfirmView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Muscle diagram placeholder (Phase 2 will have real SVG)
-                    MuscleHighlightView(primaryMuscles: exercise.primaryMuscles,
-                                       secondaryMuscles: exercise.secondaryMuscles)
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 24) {
+                        MuscleHighlightView(
+                            primaryMuscles: exercise.primaryMuscles,
+                            secondaryMuscles: exercise.secondaryMuscles
+                        )
 
-                    // Info
-                    VStack(alignment: .leading, spacing: 16) {
-                        infoRow(label: "Category", value: exercise.category)
-                        infoRow(label: "Equipment", value: exercise.equipmentType)
-                        infoRow(label: "Primary Muscles", value: exercise.primaryMuscles.joined(separator: ", "))
-                        if !exercise.secondaryMuscles.isEmpty {
-                            infoRow(label: "Secondary Muscles", value: exercise.secondaryMuscles.joined(separator: ", "))
-                        }
-                        if !exercise.instructions.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Instructions")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.secondary)
-                                Text(exercise.instructions)
-                                    .font(.subheadline)
+                        VStack(alignment: .leading, spacing: 14) {
+                            infoRow(label: "CATEGORY",         value: exercise.category)
+                            infoRow(label: "EQUIPMENT",        value: exercise.equipmentType)
+                            infoRow(label: "PRIMARY MUSCLES",  value: exercise.primaryMuscles.joined(separator: ", "))
+                            if !exercise.secondaryMuscles.isEmpty {
+                                infoRow(label: "SECONDARY MUSCLES", value: exercise.secondaryMuscles.joined(separator: ", "))
+                            }
+                            if !exercise.instructions.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("INSTRUCTIONS")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .tracking(2)
+                                        .foregroundStyle(.romanParchmentDim)
+                                    Text(exercise.instructions)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.romanParchment)
+                                }
                             }
                         }
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .padding(.horizontal)
+                        .padding(16)
+                        .romanCard()
+                        .padding(.horizontal)
 
-                    // Add to Workout button
-                    Button(action: onConfirm) {
-                        Label("Add to Workout", systemImage: "plus.circle.fill")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.orange)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        Button(action: onConfirm) {
+                            Label("Add to Workout", systemImage: "plus.circle.fill")
+                                .font(.system(size: 14, weight: .black))
+                                .tracking(1)
+                                .foregroundStyle(.romanBackground)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(LinearGradient.romanGoldGradient)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
+                    .padding(.top)
                 }
-                .padding(.top)
             }
-            .background(Color(.systemGroupedBackground))
             .navigationTitle(exercise.name)
             .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
+                        .foregroundStyle(.romanParchmentDim)
                 }
             }
         }
+        .preferredColorScheme(.dark)
     }
 
     private func infoRow(label: String, value: String) -> some View {
-        HStack {
+        HStack(alignment: .top) {
             Text(label)
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-                .frame(width: 120, alignment: .leading)
+                .font(.system(size: 9, weight: .bold))
+                .tracking(2)
+                .foregroundStyle(.romanParchmentDim)
+                .frame(width: 130, alignment: .leading)
             Text(value)
                 .font(.subheadline)
+                .foregroundStyle(.romanParchment)
         }
     }
 }
 
-// MARK: - Muscle Highlight View (schematic, Phase 2 replaces with real diagram)
+// MARK: - Muscle Highlight View
 struct MuscleHighlightView: View {
     let primaryMuscles: [String]
     let secondaryMuscles: [String]
@@ -252,25 +273,26 @@ struct MuscleHighlightView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .frame(height: 200)
+                .fill(Color.romanSurface)
+                .frame(height: 180)
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.romanBorder, lineWidth: 0.5))
                 .padding(.horizontal)
 
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Image(systemName: "figure.stand")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.secondary.opacity(0.4))
+                    .font(.system(size: 56))
+                    .foregroundStyle(.romanSurfaceHigh)
 
                 VStack(spacing: 4) {
                     if !primaryMuscles.isEmpty {
                         Label(primaryMuscles.joined(separator: ", "), systemImage: "circle.fill")
                             .font(.caption.bold())
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.romanGold)
                     }
                     if !secondaryMuscles.isEmpty {
                         Label(secondaryMuscles.joined(separator: ", "), systemImage: "circle")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.romanParchmentDim)
                     }
                 }
             }

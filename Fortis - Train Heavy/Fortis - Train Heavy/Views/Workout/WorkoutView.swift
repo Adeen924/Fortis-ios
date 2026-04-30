@@ -9,51 +9,36 @@ struct ActiveWorkoutView: View {
     @State private var showingExercisePicker = false
     @State private var showingFinishAlert = false
     @State private var showingCancelAlert = false
+    @State private var showingRenameSheet = false
     @State private var finishedSession: WorkoutSession?
-    @State private var showingSummary = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.workoutExercises.isEmpty {
-                    emptyState
-                } else {
-                    exerciseList
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+
+                Group {
+                    if viewModel.workoutExercises.isEmpty {
+                        emptyState
+                    } else {
+                        exerciseList
+                    }
                 }
             }
-            .navigationTitle(viewModel.workoutName)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel", role: .destructive) {
-                        showingCancelAlert = true
-                    }
-                    .foregroundStyle(.red)
-                }
-                ToolbarItem(placement: .principal) {
-                    timerBadge
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Finish") {
-                        showingFinishAlert = true
-                    }
-                    .bold()
-                    .foregroundStyle(.orange)
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                addExerciseButton
-            }
+            .toolbar { toolbarItems }
+            .safeAreaInset(edge: .bottom) { addExerciseButton }
             .sheet(isPresented: $showingExercisePicker) {
                 ExercisePickerView { exercise in
                     viewModel.addExercise(exercise)
                 }
             }
+            .sheet(isPresented: $showingRenameSheet) { renameSheet }
             .alert("Finish Workout?", isPresented: $showingFinishAlert) {
                 Button("Finish", role: .none) { finishWorkout() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Your workout will be saved with \(viewModel.totalCompletedSets) completed sets and \(Int(viewModel.totalVolume).formatted()) lbs total volume.")
+                Text("Save \(viewModel.totalCompletedSets) completed sets · \(Int(viewModel.totalVolume).formatted()) lbs total.")
             }
             .alert("Cancel Workout?", isPresented: $showingCancelAlert) {
                 Button("Discard", role: .destructive) { onDismiss() }
@@ -68,6 +53,32 @@ struct ActiveWorkoutView: View {
                 })
             }
         }
+        .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Toolbar
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button("Cancel", role: .destructive) { showingCancelAlert = true }
+                .foregroundStyle(.romanCrimson)
+        }
+        ToolbarItem(placement: .principal) {
+            Button(action: { showingRenameSheet = true }) {
+                VStack(spacing: 2) {
+                    timerBadge
+                    Text(viewModel.workoutName)
+                        .font(.caption2.bold())
+                        .foregroundStyle(.romanParchmentDim)
+                        .lineLimit(1)
+                }
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("FINISH") { showingFinishAlert = true }
+                .font(.system(size: 13, weight: .black))
+                .foregroundStyle(.romanGold)
+        }
     }
 
     // MARK: - Timer Badge
@@ -78,12 +89,47 @@ struct ActiveWorkoutView: View {
                 .frame(width: 6, height: 6)
             Text(viewModel.formattedDuration)
                 .font(.subheadline.monospacedDigit().bold())
-                .foregroundStyle(.primary)
+                .foregroundStyle(.romanParchment)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(Color(.secondarySystemBackground))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .background(Color.romanSurface)
         .clipShape(Capsule())
+        .overlay(Capsule().stroke(Color.romanBorder, lineWidth: 0.5))
+    }
+
+    // MARK: - Rename Sheet
+    private var renameSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    Text("RENAME WORKOUT")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(3)
+                        .foregroundStyle(.romanParchmentDim)
+
+                    TextField("Workout name", text: $viewModel.workoutName)
+                        .font(.title3.bold())
+                        .foregroundStyle(.romanParchment)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .romanCard()
+                        .padding(.horizontal)
+                }
+                .padding(.top, 40)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showingRenameSheet = false }
+                        .foregroundStyle(.romanGold)
+                        .bold()
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Empty State
@@ -92,12 +138,14 @@ struct ActiveWorkoutView: View {
             Spacer()
             Image(systemName: "plus.circle.dashed")
                 .font(.system(size: 56))
-                .foregroundStyle(.orange.opacity(0.8))
-            Text("Add Your First Exercise")
-                .font(.title3.bold())
-            Text("Tap below to browse and add\nexercises to your workout.")
+                .foregroundStyle(.romanGoldDim)
+            Text("ADD YOUR FIRST EXERCISE")
+                .font(.system(size: 13, weight: .bold))
+                .tracking(3)
+                .foregroundStyle(.romanParchment)
+            Text("Tap below to browse the exercise library.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.romanParchmentDim)
                 .multilineTextAlignment(.center)
             Spacer()
         }
@@ -106,27 +154,30 @@ struct ActiveWorkoutView: View {
     // MARK: - Exercise List
     private var exerciseList: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 14) {
                 ForEach(viewModel.workoutExercises) { entry in
-                    ExerciseLogCard(entry: entry, viewModel: viewModel)
+                    ExerciseLogCard(entry: entry, viewModel: viewModel) {
+                        if let idx = viewModel.workoutExercises.firstIndex(where: { $0.id == entry.id }) {
+                            viewModel.removeExercise(at: IndexSet(integer: idx))
+                        }
+                    }
                 }
             }
             .padding()
-            .padding(.bottom, 80)
+            .padding(.bottom, 90)
         }
     }
 
     // MARK: - Add Exercise Button
     private var addExerciseButton: some View {
-        Button {
-            showingExercisePicker = true
-        } label: {
-            Label("Add Exercise", systemImage: "plus")
-                .font(.headline)
-                .foregroundStyle(.white)
+        Button { showingExercisePicker = true } label: {
+            Label("ADD EXERCISE", systemImage: "plus")
+                .font(.system(size: 13, weight: .black))
+                .tracking(2)
+                .foregroundStyle(.romanBackground)
                 .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.orange)
+                .padding(.vertical, 16)
+                .background(LinearGradient.romanGoldGradient)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .padding(.horizontal)
                 .padding(.bottom, 8)
@@ -134,7 +185,6 @@ struct ActiveWorkoutView: View {
         .background(.ultraThinMaterial)
     }
 
-    // MARK: - Actions
     private func finishWorkout() {
         let session = viewModel.finishWorkout(context: modelContext)
         finishedSession = session
@@ -145,32 +195,46 @@ struct ActiveWorkoutView: View {
 struct ExerciseLogCard: View {
     let entry: WorkoutExerciseEntry
     @Bindable var viewModel: WorkoutViewModel
+    let onDelete: () -> Void
+
+    @State private var showingDeleteConfirm = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(entry.exerciseName)
-                        .font(.headline)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.romanParchment)
                     HStack(spacing: 4) {
-                        Text(entry.exerciseCategory)
+                        Text(entry.exerciseCategory.uppercased())
+                            .tracking(1)
                         Text("·")
                         Text(entry.primaryMuscles.joined(separator: ", "))
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.romanParchmentDim)
                 }
                 Spacer()
                 if entry.totalVolume > 0 {
                     Text(String(format: "%.0f lbs", entry.totalVolume))
                         .font(.caption.bold())
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.romanGold)
+                        .padding(.trailing, 4)
+                }
+                Button(action: { showingDeleteConfirm = true }) {
+                    Image(systemName: "xmark")
+                        .font(.caption.bold())
+                        .foregroundStyle(.romanParchmentDim)
+                        .frame(width: 28, height: 28)
+                        .background(Color.romanSurfaceHigh)
+                        .clipShape(Circle())
                 }
             }
             .padding(14)
 
-            Divider().padding(.horizontal, 14)
+            Rectangle().fill(Color.romanBorder).frame(height: 0.5).padding(.horizontal, 14)
 
             // Sets header
             HStack {
@@ -179,38 +243,38 @@ struct ExerciseLogCard: View {
                 Text("REPS").frame(maxWidth: .infinity)
                 Text("").frame(width: 44)
             }
-            .font(.caption2.bold())
-            .foregroundStyle(.secondary)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.romanParchmentDim)
+            .tracking(2)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
 
-            // Sets
             ForEach(entry.sets) { set in
                 SetRow(
                     set: set,
-                    onToggle: {
-                        viewModel.toggleSetCompleted(in: entry, setID: set.id)
-                    },
+                    onToggle: { viewModel.toggleSetCompleted(in: entry, setID: set.id) },
                     onUpdate: { reps, weight in
                         viewModel.updateSet(in: entry, setID: set.id, reps: reps, weight: weight)
                     }
                 )
             }
 
-            // Add Set Button
             Button {
                 viewModel.addSet(to: entry)
             } label: {
                 Label("Add Set", systemImage: "plus")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.romanGold)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
             }
             .padding(.top, 4)
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .romanCard()
+        .confirmationDialog("Remove \(entry.exerciseName)?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
+            Button("Remove Exercise", role: .destructive) { onDelete() }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 
@@ -227,55 +291,53 @@ struct SetRow: View {
         self.set = set
         self.onToggle = onToggle
         self.onUpdate = onUpdate
-        _repsText = State(initialValue: set.reps > 0 ? "\(set.reps)" : "")
+        _repsText   = State(initialValue: set.reps > 0   ? "\(set.reps)"                      : "")
         _weightText = State(initialValue: set.weight > 0 ? String(format: "%.1f", set.weight) : "")
     }
 
     var body: some View {
         HStack {
-            // Set number
             Text("\(set.setNumber)")
                 .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.romanParchmentDim)
                 .frame(width: 36, alignment: .leading)
 
-            // Weight
             TextField("0", text: $weightText)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
                 .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.romanParchment)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .padding(.vertical, 7)
+                .background(Color.romanSurfaceHigh)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
                 .onChange(of: weightText) { _, new in
                     if let w = Double(new) { onUpdate(Int(repsText) ?? set.reps, w) }
                 }
 
-            // Reps
             TextField("0", text: $repsText)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.romanParchment)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .padding(.vertical, 7)
+                .background(Color.romanSurfaceHigh)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
                 .onChange(of: repsText) { _, new in
                     if let r = Int(new) { onUpdate(r, Double(weightText) ?? set.weight) }
                 }
 
-            // Complete button
             Button(action: onToggle) {
                 Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(set.isCompleted ? .green : .secondary)
+                    .foregroundStyle(set.isCompleted ? .romanGold : .romanParchmentDim)
             }
             .frame(width: 44)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
-        .background(set.isCompleted ? Color.green.opacity(0.08) : Color.clear)
+        .background(set.isCompleted ? Color.romanGoldDim.opacity(0.12) : Color.clear)
         .animation(.easeInOut(duration: 0.15), value: set.isCompleted)
     }
 }

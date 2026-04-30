@@ -2,73 +2,60 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.showWorkout) private var showWorkout
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Quick Stats
-                    quickStatsSection
-
-                    // Start Workout CTA
-                    startWorkoutCard
-
-                    // Recent Workouts
-                    if !sessions.isEmpty {
-                        recentWorkoutsSection
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 20) {
+                        quickStatsSection
+                        startWorkoutCard
+                        if !sessions.isEmpty { recentWorkoutsSection }
+                        suggestionsSection
                     }
-
-                    // Suggestions
-                    suggestionsSection
+                    .padding()
+                    .padding(.bottom, 16)
                 }
-                .padding()
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Fortis")
+            .navigationTitle("FORTIS")
             .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 
     // MARK: - Quick Stats
     private var quickStatsSection: some View {
-        HStack(spacing: 12) {
-            StatCard(title: "This Week", value: "\(weeklyWorkoutCount)", unit: "workouts", color: .orange)
-            StatCard(title: "Total Volume", value: weeklyVolumeFormatted, unit: "lbs", color: .blue)
-            StatCard(title: "Streak", value: "\(currentStreak)", unit: "days", color: .green)
+        HStack(spacing: 10) {
+            RomanStatCard(title: "THIS WEEK",   value: "\(weeklyWorkoutCount)", unit: "sessions")
+            RomanStatCard(title: "VOLUME",      value: weeklyVolumeFormatted,   unit: "lbs")
+            RomanStatCard(title: "STREAK",      value: "\(currentStreak)",      unit: "days")
         }
     }
 
     private var weeklyWorkoutCount: Int {
-        let calendar = Calendar.current
-        let weekAgo = calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        return sessions.filter { $0.startDate >= weekAgo }.count
+        let ago = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return sessions.filter { $0.startDate >= ago }.count
     }
 
     private var weeklyVolumeFormatted: String {
-        let calendar = Calendar.current
-        let weekAgo = calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let volume = sessions.filter { $0.startDate >= weekAgo }.reduce(0) { $0 + $1.totalVolume }
-        if volume >= 1000 {
-            return String(format: "%.1fk", volume / 1000)
-        }
-        return String(format: "%.0f", volume)
+        let ago = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        let v = sessions.filter { $0.startDate >= ago }.reduce(0.0) { $0 + $1.totalVolume }
+        if v >= 1000 { return String(format: "%.1fk", v / 1000) }
+        return String(format: "%.0f", v)
     }
 
     private var currentStreak: Int {
         guard !sessions.isEmpty else { return 0 }
         var streak = 0
-        var checkDate = Calendar.current.startOfDay(for: Date())
+        var date = Calendar.current.startOfDay(for: Date())
         for _ in 0..<30 {
-            let hasWorkout = sessions.contains { Calendar.current.isDate($0.startDate, inSameDayAs: checkDate) }
-            if hasWorkout {
+            if sessions.contains(where: { Calendar.current.isDate($0.startDate, inSameDayAs: date) }) {
                 streak += 1
-                checkDate = Calendar.current.date(byAdding: .day, value: -1, to: checkDate) ?? checkDate
-            } else {
-                break
-            }
+                date = Calendar.current.date(byAdding: .day, value: -1, to: date) ?? date
+            } else { break }
         }
         return streak
     }
@@ -77,24 +64,38 @@ struct HomeView: View {
     private var startWorkoutCard: some View {
         Button(action: showWorkout) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("BEGIN TRAINING")
+                        .font(.system(size: 11, weight: .black))
+                        .tracking(3)
+                        .foregroundStyle(.romanGoldDim)
                     Text("Start Workout")
                         .font(.title2.bold())
-                        .foregroundStyle(.white)
-                    Text("Tap to begin a new session")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(.romanParchment)
+                    Text("Tap to open a new session")
+                        .font(.caption)
+                        .foregroundStyle(.romanParchment.opacity(0.6))
                 }
                 Spacer()
-                Image(systemName: "dumbbell.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(.white.opacity(0.9))
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 36))
+                    .foregroundStyle(LinearGradient.romanGoldGradient)
             }
             .padding(20)
             .background(
-                LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
+                ZStack {
+                    Color.romanSurface
+                    LinearGradient(
+                        colors: [Color.romanGoldDim.opacity(0.15), Color.clear],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                }
             )
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.romanGoldDim.opacity(0.4), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -102,10 +103,7 @@ struct HomeView: View {
     // MARK: - Recent Workouts
     private var recentWorkoutsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
+            sectionHeader("RECENT SESSIONS")
             ForEach(sessions.prefix(3)) { session in
                 RecentWorkoutCard(session: session)
             }
@@ -115,17 +113,15 @@ struct HomeView: View {
     // MARK: - Suggestions
     private var suggestionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Suggested")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
+            sectionHeader("SUGGESTED")
             let suggestions = muscleGroupSuggestions()
             if suggestions.isEmpty {
-                Text("Complete a workout to get suggestions")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
+                Text("Complete a workout to receive muscle-group suggestions.")
+                    .font(.caption)
+                    .foregroundStyle(.romanParchmentDim)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
+                    .romanCard()
             } else {
                 ForEach(suggestions, id: \.self) { muscle in
                     SuggestionCard(muscleGroup: muscle)
@@ -134,43 +130,46 @@ struct HomeView: View {
         }
     }
 
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .bold))
+            .tracking(3)
+            .foregroundStyle(.romanParchmentDim)
+    }
+
     private func muscleGroupSuggestions() -> [String] {
-        let allMuscles = MuscleGroup.allCases.map { $0.rawValue }
-        let recentMuscles = sessions.prefix(3).flatMap { session in
-            session.workoutExercises.flatMap { $0.primaryMuscles }
-        }
-        let recentSet = Set(recentMuscles)
-        let suggestions = allMuscles.filter { !recentSet.contains($0) }
-        return Array(suggestions.prefix(2))
+        let all = MuscleGroup.allCases.map { $0.rawValue }
+        let recent = Set(sessions.prefix(3).flatMap { $0.workoutExercises.flatMap { $0.primaryMuscles } })
+        return Array(all.filter { !recent.contains($0) }.prefix(2))
     }
 }
 
-// MARK: - Supporting Views
-struct StatCard: View {
+// MARK: - Stat Card
+struct RomanStatCard: View {
     let title: String
     let value: String
     let unit: String
-    let color: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 8, weight: .bold))
+                .tracking(2)
+                .foregroundStyle(.romanParchmentDim)
             Text(value)
-                .font(.title2.bold())
-                .foregroundStyle(color)
+                .font(.title2.bold().monospacedDigit())
+                .foregroundStyle(.romanGold)
             Text(unit)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 9))
+                .foregroundStyle(.romanParchmentDim)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(14)
+        .romanCard()
     }
 }
 
+// MARK: - Recent Workout Card
 struct RecentWorkoutCard: View {
     let session: WorkoutSession
 
@@ -179,23 +178,23 @@ struct RecentWorkoutCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.name)
                     .font(.subheadline.bold())
+                    .foregroundStyle(.romanParchment)
                 Text(session.startDate, style: .relative)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.romanParchmentDim)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text(volumeFormatted)
                     .font(.subheadline.bold())
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.romanGold)
                 Text("\(session.totalSets) sets")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.romanParchmentDim)
             }
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .romanCard()
     }
 
     private var volumeFormatted: String {
@@ -205,6 +204,7 @@ struct RecentWorkoutCard: View {
     }
 }
 
+// MARK: - Suggestion Card
 struct SuggestionCard: View {
     let muscleGroup: String
 
@@ -212,18 +212,18 @@ struct SuggestionCard: View {
         HStack(spacing: 12) {
             Image(systemName: "arrow.up.right.circle.fill")
                 .font(.title2)
-                .foregroundStyle(.orange)
+                .foregroundStyle(.romanGold)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Train \(muscleGroup)")
                     .font(.subheadline.bold())
+                    .foregroundStyle(.romanParchment)
                 Text("Not trained recently")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.romanParchmentDim)
             }
             Spacer()
         }
         .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .romanCard()
     }
 }

@@ -7,45 +7,61 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if sessions.isEmpty {
-                    ContentUnavailableView(
-                        "No Workouts Yet",
-                        systemImage: "clock.badge.questionmark",
-                        description: Text("Complete your first workout to see your history.")
-                    )
-                } else {
-                    List {
-                        // Group by month
-                        ForEach(groupedSessions.keys.sorted(by: >), id: \.self) { monthKey in
-                            Section(header: Text(monthKey).textCase(nil)) {
-                                ForEach(groupedSessions[monthKey] ?? []) { session in
-                                    Button {
-                                        selectedSession = session
-                                    } label: {
-                                        HistoryRow(session: session)
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                Group {
+                    if sessions.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "scroll.fill")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.romanGoldDim)
+                            Text("NO SESSIONS YET")
+                                .font(.system(size: 12, weight: .bold))
+                                .tracking(3)
+                                .foregroundStyle(.romanParchment)
+                            Text("Complete your first workout to begin your legacy.")
+                                .font(.subheadline)
+                                .foregroundStyle(.romanParchmentDim)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                    } else {
+                        List {
+                            ForEach(groupedSessions.keys.sorted(by: >), id: \.self) { monthKey in
+                                Section {
+                                    ForEach(groupedSessions[monthKey] ?? []) { session in
+                                        Button { selectedSession = session } label: {
+                                            HistoryRow(session: session)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .listRowBackground(Color.romanSurface)
+                                        .listRowSeparatorTint(Color.romanBorder)
                                     }
-                                    .buttonStyle(.plain)
+                                } header: {
+                                    Text(monthKey.uppercased())
+                                        .font(.system(size: 10, weight: .bold))
+                                        .tracking(3)
+                                        .foregroundStyle(.romanParchmentDim)
                                 }
                             }
                         }
+                        .listStyle(.insetGrouped)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle("HISTORY")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(item: $selectedSession) { session in
-                WorkoutSummaryView(session: session) {
-                    selectedSession = nil
-                }
+                WorkoutSummaryView(session: session) { selectedSession = nil }
             }
         }
     }
 
     private var groupedSessions: [String: [WorkoutSession]] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return Dictionary(grouping: sessions) { formatter.string(from: $0.startDate) }
+        let f = DateFormatter(); f.dateFormat = "MMMM yyyy"
+        return Dictionary(grouping: sessions) { f.string(from: $0.startDate) }
     }
 }
 
@@ -53,56 +69,48 @@ struct HistoryRow: View {
     let session: WorkoutSession
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Date block
+        HStack(spacing: 14) {
             VStack(spacing: 2) {
                 Text(dayString)
-                    .font(.title3.bold())
-                    .foregroundStyle(.orange)
+                    .font(.title3.bold().monospacedDigit())
+                    .foregroundStyle(.romanGold)
                 Text(weekdayString)
-                    .font(.caption2.bold())
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 9, weight: .bold))
+                    .tracking(1)
+                    .foregroundStyle(.romanParchmentDim)
             }
-            .frame(width: 40)
+            .frame(width: 38)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.name)
                     .font(.subheadline.bold())
-                HStack(spacing: 8) {
+                    .foregroundStyle(.romanParchment)
+                HStack(spacing: 10) {
                     Label(durationFormatted, systemImage: "clock")
                     Label(volumeFormatted, systemImage: "scalemass")
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.romanParchmentDim)
                 Text(musclesString)
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.romanGoldDim)
                     .lineLimit(1)
             }
 
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.romanBorder)
         }
         .padding(.vertical, 4)
     }
 
-    private var dayString: String {
-        let f = DateFormatter(); f.dateFormat = "d"
-        return f.string(from: session.startDate)
-    }
-
-    private var weekdayString: String {
-        let f = DateFormatter(); f.dateFormat = "EEE"
-        return f.string(from: session.startDate).uppercased()
-    }
+    private var dayString: String      { let f = DateFormatter(); f.dateFormat = "d";   return f.string(from: session.startDate) }
+    private var weekdayString: String  { let f = DateFormatter(); f.dateFormat = "EEE"; return f.string(from: session.startDate).uppercased() }
 
     private var durationFormatted: String {
-        let d = Int(session.duration)
-        let m = d / 60
-        if m < 60 { return "\(m)m" }
-        return "\(m / 60)h \(m % 60)m"
+        let m = Int(session.duration) / 60
+        return m < 60 ? "\(m)m" : "\(m / 60)h \(m % 60)m"
     }
 
     private var volumeFormatted: String {
@@ -112,7 +120,6 @@ struct HistoryRow: View {
     }
 
     private var musclesString: String {
-        let muscles = Set(session.workoutExercises.flatMap { $0.primaryMuscles })
-        return muscles.sorted().joined(separator: " · ")
+        Set(session.workoutExercises.flatMap { $0.primaryMuscles }).sorted().joined(separator: " · ")
     }
 }

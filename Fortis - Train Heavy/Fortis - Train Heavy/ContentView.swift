@@ -2,35 +2,32 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var activeWorkout: WorkoutViewModel?
-    @State private var showingWorkoutSheet = false
 
     var body: some View {
         TabView {
             HomeView()
                 .tabItem { Label("Home", systemImage: "house.fill") }
 
-            WorkoutTabView(activeWorkout: $activeWorkout, showingWorkoutSheet: $showingWorkoutSheet)
-                .tabItem { Label("Workout", systemImage: "dumbbell.fill") }
+            WorkoutTabView(activeWorkout: $activeWorkout)
+                .tabItem { Label("Workout", systemImage: "flame.fill") }
 
             HistoryView()
-                .tabItem { Label("History", systemImage: "clock.fill") }
+                .tabItem { Label("History", systemImage: "scroll.fill") }
 
             SocialView()
                 .tabItem { Label("Social", systemImage: "person.2.fill") }
 
             ProfileView()
-                .tabItem { Label("Profile", systemImage: "person.fill") }
+                .tabItem { Label("Profile", systemImage: "shield.fill") }
         }
+        .tint(.romanGold)
+        .preferredColorScheme(.dark)
         .environment(\.showWorkout, {
             activeWorkout = WorkoutViewModel()
-            showingWorkoutSheet = true
         })
-        .fullScreenCover(isPresented: $showingWorkoutSheet) {
-            if let workout = activeWorkout {
-                ActiveWorkoutView(viewModel: workout) {
-                    showingWorkoutSheet = false
-                    activeWorkout = nil
-                }
+        .fullScreenCover(item: $activeWorkout) { workout in
+            ActiveWorkoutView(viewModel: workout) {
+                activeWorkout = nil
             }
         }
     }

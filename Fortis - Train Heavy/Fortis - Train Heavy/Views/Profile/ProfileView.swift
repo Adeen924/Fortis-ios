@@ -6,61 +6,89 @@ struct ProfileView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 64, height: 64)
-                            Text("F")
-                                .font(.title.bold())
-                                .foregroundStyle(.white)
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                List {
+                    Section {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.romanSurface)
+                                    .frame(width: 64, height: 64)
+                                    .overlay(Circle().stroke(LinearGradient.romanGoldGradient, lineWidth: 1.5))
+                                Text("F")
+                                    .font(.system(size: 28, weight: .black, design: .serif))
+                                    .foregroundStyle(LinearGradient.romanGoldGradient)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Athlete")
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.romanParchment)
+                                Text("Fortis — Train Heavy")
+                                    .font(.caption)
+                                    .foregroundStyle(.romanParchmentDim)
+                            }
                         }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Athlete")
-                                .font(.title3.bold())
-                            Text("Joined today")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        .padding(.vertical, 6)
+                        .listRowBackground(Color.romanSurface)
                     }
-                    .padding(.vertical, 4)
-                }
 
-                Section("Stats") {
-                    ProfileStatRow(label: "Total Workouts", value: "\(sessions.count)")
-                    ProfileStatRow(label: "Total Volume", value: totalVolumeFormatted)
-                    ProfileStatRow(label: "Exercises Logged", value: "\(totalExercises)")
-                }
+                    Section {
+                        ProfileStatRow(label: "Total Sessions",    value: "\(sessions.count)")
+                        ProfileStatRow(label: "Total Volume",      value: totalVolumeFormatted)
+                        ProfileStatRow(label: "Exercises Logged",  value: "\(totalExercises)")
+                    } header: {
+                        sectionHeader("YOUR LEGACY")
+                    }
+                    .listRowBackground(Color.romanSurface)
+                    .listRowSeparatorTint(Color.romanBorder)
 
-                Section("Settings") {
-                    Label("Notifications", systemImage: "bell.fill")
-                    Label("Units (lbs / kg)", systemImage: "scalemass.fill")
-                    Label("Connect Apple Health", systemImage: "heart.fill")
-                    Label("Sync with Apple Watch", systemImage: "applewatch")
-                }
+                    Section {
+                        settingsRow(label: "Notifications",       icon: "bell.fill")
+                        settingsRow(label: "Units (lbs / kg)",    icon: "scalemass.fill")
+                        settingsRow(label: "Apple Health",        icon: "heart.fill")
+                        settingsRow(label: "Apple Watch",         icon: "applewatch")
+                    } header: {
+                        sectionHeader("SETTINGS")
+                    }
+                    .listRowBackground(Color.romanSurface)
+                    .listRowSeparatorTint(Color.romanBorder)
 
-                Section {
-                    Text("More settings and full profile coming in Phase 4.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Section {
+                        Text("Full profile, social features, and advanced settings arrive in Phase 4.")
+                            .font(.caption)
+                            .foregroundStyle(.romanParchmentDim)
+                            .listRowBackground(Color.romanSurface)
+                    }
                 }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Profile")
+            .navigationTitle("PROFILE")
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
 
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .tracking(3)
+            .foregroundStyle(.romanParchmentDim)
+    }
+
+    private func settingsRow(label: String, icon: String) -> some View {
+        Label(label, systemImage: icon)
+            .foregroundStyle(.romanParchment)
+    }
+
     private var totalVolumeFormatted: String {
-        let v = sessions.reduce(0) { $0 + $1.totalVolume }
+        let v = sessions.reduce(0.0) { $0 + $1.totalVolume }
         if v >= 1_000_000 { return String(format: "%.1fM lbs", v / 1_000_000) }
         if v >= 1000      { return String(format: "%.1fk lbs", v / 1000) }
         return String(format: "%.0f lbs", v)
     }
 
-    private var totalExercises: Int {
-        sessions.flatMap { $0.workoutExercises }.count
-    }
+    private var totalExercises: Int { sessions.flatMap { $0.workoutExercises }.count }
 }
 
 struct ProfileStatRow: View {
@@ -69,11 +97,9 @@ struct ProfileStatRow: View {
 
     var body: some View {
         HStack {
-            Text(label)
+            Text(label).foregroundStyle(.romanParchment)
             Spacer()
-            Text(value)
-                .foregroundStyle(.orange)
-                .bold()
+            Text(value).foregroundStyle(.romanGold).bold()
         }
     }
 }
