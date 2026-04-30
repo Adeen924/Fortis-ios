@@ -11,6 +11,7 @@ struct SocialProfileCompletionView: View {
     @State private var firstName    = ""
     @State private var lastName     = ""
     @State private var username     = ""
+    @State private var gender       = "male"
     @State private var age          = ""
     @State private var heightFeet   = 5
     @State private var heightInches = 10
@@ -88,6 +89,15 @@ struct SocialProfileCompletionView: View {
                             .padding(.vertical, 16).padding(.trailing, 16)
                     }
                     .background(Color.romanSurface).clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.romanBorder, lineWidth: 0.5))
+
+                    Picker("Gender", selection: $gender) {
+                        Text("Male").tag("male")
+                        Text("Female").tag("female")
+                    }
+                    .pickerStyle(.segmented)
+                    .background(Color.romanSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.romanBorder, lineWidth: 0.5))
                 }
                 if let e = validationError { errorLabel(e) }
@@ -172,6 +182,7 @@ struct SocialProfileCompletionView: View {
             lastName:  lastName.trimmingCharacters(in: .whitespaces),
             username:  username.trimmingCharacters(in: .whitespaces).lowercased(),
             age:          Int(age) ?? 18,
+            gender:       gender,
             heightFeet:   heightFeet,
             heightInches: heightInches,
             weightLbs:    Double(weightText) ?? 160,

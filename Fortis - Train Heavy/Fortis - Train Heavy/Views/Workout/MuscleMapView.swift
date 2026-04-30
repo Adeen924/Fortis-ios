@@ -1,9 +1,16 @@
 import SwiftUI
+import SwiftData
 import MuscleMap
 
 struct MuscleMapView: View {
     let primaryMuscles: [String]
     let secondaryMuscles: [String]
+
+    @Query private var profiles: [UserProfile]
+
+    private var userGender: BodyGender {
+        profiles.first?.gender == "female" ? .female : .male
+    }
 
     var body: some View {
         HStack(spacing: 20) {
@@ -22,7 +29,7 @@ struct MuscleMapView: View {
     }
 
     private func highlightedBodyView(side: BodySide) -> some View {
-        var view = BodyView(gender: .male, side: side).bodyStyle(.minimal)
+        var view = BodyView(gender: userGender, side: side).bodyStyle(.minimal)
         for muscle in primaryMuscles.compactMap({ mapToMuscle($0) }) {
             view = view.highlight(muscle, color: Color.blue.opacity(0.85))
         }

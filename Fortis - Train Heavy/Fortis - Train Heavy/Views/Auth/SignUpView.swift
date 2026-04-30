@@ -22,6 +22,7 @@ struct SignUpView: View {
     @State private var firstName = ""
     @State private var lastName  = ""
     @State private var username  = ""
+    @State private var gender    = "male"
 
     // Step 3 — Physical
     @State private var age          = ""
@@ -175,6 +176,15 @@ struct SignUpView: View {
                             .padding(.vertical, 16)
                             .padding(.trailing, 16)
                     }
+                    .background(Color.romanSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.romanBorder, lineWidth: 0.5))
+
+                    Picker("Gender", selection: $gender) {
+                        Text("Male").tag("male")
+                        Text("Female").tag("female")
+                    }
+                    .pickerStyle(.segmented)
                     .background(Color.romanSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.romanBorder, lineWidth: 0.5))
@@ -368,6 +378,7 @@ struct SignUpView: View {
             email:        contactMethod == .email ? email.lowercased() : nil,
             phoneNumber:  contactMethod == .phone ? phoneNumber : nil,
             age:          Int(age) ?? 18,
+            gender:       gender,
             heightFeet:   heightFeet,
             heightInches: heightInches,
             weightLbs:    Double(weightText) ?? 160,
