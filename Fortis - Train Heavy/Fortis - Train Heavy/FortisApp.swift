@@ -7,8 +7,8 @@ struct FortisApp: App {
     @State private var authManager = AuthManager()
 
     init() {
-        do {
-            modelContainer = try ModelContainer(
+        func makeContainer() throws -> ModelContainer {
+            try ModelContainer(
                 for: Exercise.self,
                      WorkoutSession.self,
                      ExerciseSet.self,
@@ -16,13 +16,32 @@ struct FortisApp: App {
                      UserProfile.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: false)
             )
-        } catch {
-            fatalError("Failed to initialize ModelContainer: \(error)")
         }
+
+        do {
+            modelContainer = try makeContainer()
+        } catch {
+            removeDefaultStore()
+            do {
+                modelContainer = try makeContainer()
+            } catch {
+                fatalError("Failed to initialize ModelContainer after reset: \(error)")
+            }
+        }
+
         let container = modelContainer
         Task.detached(priority: .utility) {
             let context = await MainActor.run { ModelContext(container) }
             ExerciseService.seedIfNeeded(context: context)
+        }
+    }
+
+    private func removeDefaultStore() {
+        guard let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let storeURL = appSupportURL.appendingPathComponent("default.store")
+        let files = [storeURL, storeURL.appendingPathExtension("-shm"), storeURL.appendingPathExtension("-wal")]
+        for file in files {
+            try? FileManager.default.removeItem(at: file)
         }
     }
 
