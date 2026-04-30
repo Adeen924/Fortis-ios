@@ -4,7 +4,14 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.showWorkout) private var showWorkout
     @EnvironmentObject private var appSettings: AppSettings
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
+    @Query private var allExercises: [Exercise]
+    @Query private var profiles: [UserProfile]
+    @State private var selectedSuggestion: SuggestedWorkout?
+    @State private var showingSuggestedWorkout = false
+
+    private var profile: UserProfile? { profiles.first }
 
     var body: some View {
         NavigationStack {
@@ -24,6 +31,13 @@ struct HomeView: View {
             .navigationTitle("FORTIS")
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .sheet(isPresented: $showingSuggestedWorkout) {
+                if let workout = selectedSuggestion {
+                    SuggestedWorkoutView(suggestedWorkout: workout) {
+                        showingSuggestedWorkout = false
+                    }
+                }
+            }
         }
     }
 
@@ -171,9 +185,28 @@ struct HomeView: View {
                     .romanCard()
             } else {
                 ForEach(suggestions, id: \.self) { muscle in
-                    SuggestionCard(muscleGroup: muscle)
+                    Button(action: {
+                        generateAndShowSuggestion(for: muscle)
+                    }) {
+                        SuggestionCard(muscleGroup: muscle)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+        }
+    }
+    
+    private func generateAndShowSuggestion(for muscleGroup: String) {
+        let workout = WorkoutRecommendationEngine.recommendWorkout(
+            for: muscleGroup,
+            userProfile: profile,
+            workoutHistory: sessions,
+            availableExercises: allExercises,
+            context: modelContext
+        )
+        if let workout = workout {
+            selectedSuggestion = workout
+            showingSuggestedWorkout = true
         }
     }
 
