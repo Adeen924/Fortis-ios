@@ -31,4 +31,25 @@ struct MuscleMapView: View {
         }
         return view
     }
+
+    private func mapToMuscle(_ name: String) -> Muscle? {
+        switch name.lowercased() {
+        case "chest": return .chest
+        case "shoulders": return .deltoids
+        case "biceps": return .biceps
+        case "triceps": return .triceps
+        case "forearms": return .forearm
+        case "core": return .obliques
+        case "abs": return .abs
+        case "quads": return .quadriceps
+        case "glutes": return .gluteal
+        case "hamstrings": return .hamstring
+        case "calves": return .calves
+        case "back": return .upperBack
+        case "lats": return .upperBack
+        case "lower back": return .lowerBack
+        case "traps": return .trapezius
+        default: return nil
+        }
+    }
 }
