@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A98971262FA30B880037BD54 /* MuscleMap in Frameworks */ = {isa = PBXBuildFile; productRef = A98971252FA30B880037BD54 /* MuscleMap */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fortis - Train Heavy.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A98971262FA30B880037BD54 /* MuscleMap in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "Fortis - Train Heavy";
 			packageProductDependencies = (
+				A98971252FA30B880037BD54 /* MuscleMap */,
 			);
 			productName = "Fortis - Train Heavy";
 			productReference = A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = A98970922FA2A4A80037BD54;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A989709C2FA2A4A80037BD54 /* Products */;
 			projectDirPath = "";
@@ -336,6 +345,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/melihcolpan/MuscleMap.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.6.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A98971252FA30B880037BD54 /* MuscleMap */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */;
+			productName = MuscleMap;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A98970932FA2A4A80037BD54 /* Project object */;
 }
