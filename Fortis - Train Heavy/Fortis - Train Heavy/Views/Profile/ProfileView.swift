@@ -225,10 +225,8 @@ struct ProfileView: View {
 
     private func openAppleHealth() {
         guard let url = URL(string: "x-apple-health://") else { return }
-        openURL(url) { result in
-            switch result {
-            case .success: break
-            case .failure:
+        openURL(url) { accepted in
+            if !accepted {
                 urlFailureMessage = "Unable to open the Health app."
                 showingURLFailureAlert = true
             }
@@ -237,10 +235,8 @@ struct ProfileView: View {
 
     private func openAppleWatch() {
         guard let url = URL(string: "x-apple-watch://") else { return }
-        openURL(url) { result in
-            switch result {
-            case .success: break
-            case .failure:
+        openURL(url) { accepted in
+            if !accepted {
                 urlFailureMessage = "Unable to open the Watch app."
                 showingURLFailureAlert = true
             }
