@@ -34,7 +34,8 @@ struct ActiveWorkoutView: View {
             .safeAreaInset(edge: .bottom) { addExerciseButton }
             .sheet(isPresented: $showingExercisePicker) {
                 ExercisePickerView { exercise in
-                    viewModel.addExercise(exercise, bodyWeightLbs: profile?.weightLbs)
+                    let bodyWeight = exercise.equipmentType.lowercased().contains("body") ? profile?.weightLbs : nil
+                    viewModel.addExercise(exercise, bodyWeightLbs: bodyWeight)
                 }
             }
             .sheet(isPresented: $showingRenameSheet) { renameSheet }
