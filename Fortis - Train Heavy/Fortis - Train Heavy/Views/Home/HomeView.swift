@@ -149,8 +149,8 @@ struct HomeView: View {
                     secondaryMuscles: combinedWeeklySecondaryMuscles
                 )
                 .frame(height: 200)
-                .padding(.top, 50)
-                .padding(.bottom, 50)
+                .padding(.top, 75)
+                .padding(.bottom, 75)
             }
         }
     }
