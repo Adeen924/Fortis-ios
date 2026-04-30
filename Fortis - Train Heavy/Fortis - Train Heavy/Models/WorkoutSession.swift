@@ -38,7 +38,7 @@ final class WorkoutSession {
     }
 }
 
-extension WorkoutSession: @retroactive Identifiable {}
+extension WorkoutSession: Identifiable {}
 
 // MARK: - WorkoutExercise (join model: session <-> exercise with sets)
 @Model

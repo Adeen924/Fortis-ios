@@ -28,6 +28,18 @@ extension Color {
     static let fortisCard = Color(.secondarySystemGroupedBackground)
 }
 
+// MARK: - Environment Keys
+private struct ShowWorkoutKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var showWorkout: () -> Void {
+        get { self[ShowWorkoutKey.self] }
+        set { self[ShowWorkoutKey.self] = newValue }
+    }
+}
+
 // MARK: - View Modifiers
 struct FortisCard: ViewModifier {
     func body(content: Content) -> some View {

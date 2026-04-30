@@ -11,12 +11,12 @@ struct FortisApp: App {
                 for: Exercise.self, WorkoutSession.self, ExerciseSet.self, WorkoutExercise.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: false)
             )
-            // Seed exercises on first launch
-            Task { @MainActor in
-                ExerciseService.seedIfNeeded(context: modelContainer.mainContext)
-            }
         } catch {
             fatalError("Failed to initialize ModelContainer: \(error)")
+        }
+        let container = modelContainer
+        Task { @MainActor in
+            ExerciseService.seedIfNeeded(context: container.mainContext)
         }
     }
 
