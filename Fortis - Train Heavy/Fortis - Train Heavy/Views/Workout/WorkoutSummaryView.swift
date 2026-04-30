@@ -1,8 +1,70 @@
 import SwiftUI
+import SwiftData
+
+struct PersonalRecord: Identifiable {
+    let id = UUID()
+    let exerciseName: String
+    let reps: Int
+    let weight: Double
+    let previousMax: Double
+}
 
 struct WorkoutSummaryView: View {
     let session: WorkoutSession
     let onDismiss: () -> Void
+
+    @Query private var profiles: [UserProfile]
+    @Query(sort: \.startDate, order: .reverse) private var pastSessions: [WorkoutSession]
+
+    private var combinedPrimaryMuscles: [String] {
+        var muscles = Set<String>()
+        for ex in session.workoutExercises {
+            muscles.formUnion(ex.primaryMuscles)
+        }
+        return Array(muscles)
+    }
+
+    private var combinedSecondaryMuscles: [String] {
+        var muscles = Set<String>()
+        for ex in session.workoutExercises {
+            muscles.formUnion(ex.secondaryMuscles)
+        }
+        return Array(muscles)
+    }
+
+    private var personalRecords: [PersonalRecord] {
+        var records: [PersonalRecord] = []
+        let pastMaxes = getPastMaxes()
+
+        for workoutEx in session.workoutExercises {
+            for set in workoutEx.sets where set.isCompleted {
+                let key = "\(workoutEx.exerciseID)_\(set.reps)"
+                let pastMax = pastMaxes[key] ?? 0
+                if set.weight > pastMax {
+                    records.append(PersonalRecord(
+                        exerciseName: workoutEx.exerciseName,
+                        reps: set.reps,
+                        weight: set.weight,
+                        previousMax: pastMax
+                    ))
+                }
+            }
+        }
+        return records.sorted { $0.weight > $1.weight }
+    }
+
+    private func getPastMaxes() -> [String: Double] {
+        var maxes: [String: Double] = [:]
+        for pastSession in pastSessions where pastSession.id != session.id {
+            for workoutEx in pastSession.workoutExercises {
+                for set in workoutEx.sets where set.isCompleted {
+                    let key = "\(workoutEx.exerciseID)_\(set.reps)"
+                    maxes[key] = max(maxes[key] ?? 0, set.weight)
+                }
+            }
+        }
+        return maxes
+    }
 
     var body: some View {
         NavigationStack {
@@ -13,14 +75,14 @@ struct WorkoutSummaryView: View {
                         summaryHero
                         statsGrid
                         exerciseBreakdown
-                        heatMapSection
+                        personalRecordsSection
                         shareSection
                     }
                     .padding()
                     .padding(.bottom, 32)
                 }
             }
-            .navigationTitle("VICTORIA")
+            .navigationTitle(session.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
@@ -38,20 +100,10 @@ struct WorkoutSummaryView: View {
     // MARK: - Hero
     private var summaryHero: some View {
         VStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.romanSurface)
-                    .frame(width: 88, height: 88)
-                    .overlay(Circle().stroke(LinearGradient.romanGoldGradient, lineWidth: 1.5))
-                    .shadow(color: .romanGold.opacity(0.3), radius: 16, x: 0, y: 6)
-                Image(systemName: "checkmark")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundStyle(LinearGradient.romanGoldGradient)
-            }
-            Text("VICTORIA")
-                .font(.system(size: 11, weight: .bold))
-                .tracking(4)
-                .foregroundStyle(.romanGoldDim)
+            MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
+                .frame(height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal)
             Text(session.name)
                 .font(.title2.bold())
                 .foregroundStyle(.romanParchment)
@@ -92,11 +144,41 @@ struct WorkoutSummaryView: View {
         }
     }
 
-    // MARK: - Heat Map
-    private var heatMapSection: some View {
+    // MARK: - Personal Records
+    private var personalRecordsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("MUSCLES TRAINED")
-            MuscleSummaryHeatMap(session: session)
+            sectionHeader("PERSONAL RECORDS")
+            if personalRecords.isEmpty {
+                Text("No new personal records this session.")
+                    .font(.subheadline)
+                    .foregroundStyle(.romanParchmentDim)
+                    .padding(14)
+                    .romanCard()
+            } else {
+                ForEach(personalRecords) { record in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("PR: \(record.exerciseName)")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(.romanParchment)
+                            Text("\(String(format: "%.1f", record.weight)) lbs × \(record.reps) reps")
+                                .font(.caption)
+                                .foregroundStyle(.romanGold)
+                            if record.previousMax > 0 {
+                                Text("Previous: \(String(format: "%.1f", record.previousMax)) lbs")
+                                    .font(.caption2)
+                                    .foregroundStyle(.romanParchmentDim)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: "trophy.fill")
+                            .font(.title3)
+                            .foregroundStyle(.romanGold)
+                    }
+                    .padding(14)
+                    .romanCard()
+                }
+            }
         }
     }
 

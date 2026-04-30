@@ -46,6 +46,7 @@ final class WorkoutExercise {
     var exerciseName: String
     var exerciseCategory: String
     var primaryMuscles: [String]
+    var secondaryMuscles: [String]
     var order: Int
     @Relationship(deleteRule: .cascade) var sets: [ExerciseSet]
 
@@ -63,6 +64,7 @@ final class WorkoutExercise {
         exerciseName: String,
         exerciseCategory: String,
         primaryMuscles: [String],
+        secondaryMuscles: [String] = [],
         order: Int = 0,
         sets: [ExerciseSet] = []
     ) {
@@ -71,6 +73,7 @@ final class WorkoutExercise {
         self.exerciseName = exerciseName
         self.exerciseCategory = exerciseCategory
         self.primaryMuscles = primaryMuscles
+        self.secondaryMuscles = secondaryMuscles
         self.order = order
         self.sets = sets
     }

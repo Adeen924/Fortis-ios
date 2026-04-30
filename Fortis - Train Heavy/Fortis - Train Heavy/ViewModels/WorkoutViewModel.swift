@@ -156,6 +156,7 @@ final class WorkoutViewModel: Identifiable {
                 exerciseName: entry.exerciseName,
                 exerciseCategory: entry.exerciseCategory,
                 primaryMuscles: entry.primaryMuscles,
+                secondaryMuscles: entry.secondaryMuscles,
                 order: entry.order
             )
             for s in entry.sets {
