@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Shown after Apple/Google sign-in to collect the profile fields
 /// that social auth doesn't provide (username, age, height, weight, goals).

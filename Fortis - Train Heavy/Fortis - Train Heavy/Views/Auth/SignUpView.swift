@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct SignUpView: View {
     @Environment(AuthManager.self) private var authManager
