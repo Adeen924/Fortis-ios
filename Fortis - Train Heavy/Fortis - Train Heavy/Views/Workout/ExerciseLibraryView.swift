@@ -242,9 +242,18 @@ struct ExerciseDetailConfirmView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(.romanParchmentDim)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: onConfirm) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add to Workout")
+                        }
+                    }
+                    .foregroundStyle(.romanGold)
                 }
             }
         }
