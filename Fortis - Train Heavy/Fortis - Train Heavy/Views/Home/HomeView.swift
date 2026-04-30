@@ -13,7 +13,7 @@ struct HomeView: View {
                     VStack(spacing: 20) {
                         quickStatsSection
                         startWorkoutCard
-                        if !sessions.isEmpty { recentWorkoutsSection }
+                        weeklyMuscleMapSection
                         suggestionsSection
                     }
                     .padding()
@@ -60,6 +60,31 @@ struct HomeView: View {
         return streak
     }
 
+    private var weeklySessions: [WorkoutSession] {
+        let ago = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return sessions.filter { $0.startDate >= ago }
+    }
+
+    private var combinedWeeklyPrimaryMuscles: [String] {
+        var muscles = Set<String>()
+        for session in weeklySessions {
+            for ex in session.workoutExercises {
+                muscles.formUnion(ex.primaryMuscles)
+            }
+        }
+        return Array(muscles)
+    }
+
+    private var combinedWeeklySecondaryMuscles: [String] {
+        var muscles = Set<String>()
+        for session in weeklySessions {
+            for ex in session.workoutExercises {
+                muscles.formUnion(ex.secondaryMuscles ?? [])
+            }
+        }
+        return Array(muscles)
+    }
+
     // MARK: - Start Workout Card
     private var startWorkoutCard: some View {
         Button(action: showWorkout) {
@@ -100,12 +125,23 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Recent Workouts
-    private var recentWorkoutsSection: some View {
+    // MARK: - Weekly Muscle Map
+    private var weeklyMuscleMapSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("RECENT SESSIONS")
-            ForEach(sessions.prefix(3)) { session in
-                RecentWorkoutCard(session: session)
+            sectionHeader("WEEKLY MUSCLE MAP")
+            if weeklySessions.isEmpty {
+                Text("Complete a workout to visualize your muscles trained this week.")
+                    .font(.caption)
+                    .foregroundStyle(.romanParchmentDim)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+                    .romanCard()
+            } else {
+                MuscleMapView(
+                    primaryMuscles: combinedWeeklyPrimaryMuscles,
+                    secondaryMuscles: combinedWeeklySecondaryMuscles
+                )
+                .frame(height: 260)
             }
         }
     }
