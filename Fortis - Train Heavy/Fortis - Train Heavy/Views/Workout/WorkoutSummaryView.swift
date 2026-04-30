@@ -14,7 +14,7 @@ struct WorkoutSummaryView: View {
     let onDismiss: () -> Void
 
     @Query private var profiles: [UserProfile]
-    @Query(sort: \.startDate, order: .reverse) private var pastSessions: [WorkoutSession]
+    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var pastSessions: [WorkoutSession]
 
     private var combinedPrimaryMuscles: [String] {
         var muscles = Set<String>()

@@ -196,8 +196,19 @@ struct WorkoutExerciseEntry: Identifiable {
     var exerciseName: String
     var exerciseCategory: String
     var primaryMuscles: [String]
+    var secondaryMuscles: [String]
     var order: Int
     var sets: [SetEntry] = []
+
+    init(exercise: Exercise, order: Int) {
+        self.exerciseID = exercise.id
+        self.exerciseName = exercise.name
+        self.exerciseCategory = exercise.category
+        self.primaryMuscles = exercise.primaryMuscles
+        self.secondaryMuscles = exercise.secondaryMuscles
+        self.order = order
+    }
+}
 
     init(exercise: Exercise, order: Int) {
         self.exerciseID = exercise.id
