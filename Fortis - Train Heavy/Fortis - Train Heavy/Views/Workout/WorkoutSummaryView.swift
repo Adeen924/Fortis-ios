@@ -390,9 +390,6 @@ struct ExerciseSummaryRow: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.romanParchment)
                     Spacer()
-                    Image(systemName: set.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .font(.caption)
-                        .foregroundStyle(set.isCompleted ? .romanGold : .romanParchmentDim)
                 }
             }
         }
