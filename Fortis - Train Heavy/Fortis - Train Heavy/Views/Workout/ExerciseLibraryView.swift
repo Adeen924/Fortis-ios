@@ -195,7 +195,7 @@ struct ExerciseDetailConfirmView: View {
                 Color.romanBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 24) {
-                        MuscleHighlightView(
+                        MuscleMapView(
                             primaryMuscles: exercise.primaryMuscles,
                             secondaryMuscles: exercise.secondaryMuscles
                         )

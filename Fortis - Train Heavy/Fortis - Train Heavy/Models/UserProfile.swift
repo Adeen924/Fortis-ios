@@ -16,6 +16,7 @@ final class UserProfile {
     var goals: [String]
     var authProvider: String   // "apple", "google", "email", "phone"
     var createdAt: Date
+    @Attribute(.externalStorage) var photoData: Data?
 
     var fullName: String { "\(firstName) \(lastName)" }
     var heightFormatted: String { "\(heightFeet)'\(heightInches)\"" }

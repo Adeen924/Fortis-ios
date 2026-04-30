@@ -1,11 +1,16 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct ProfileView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.modelContext) private var context
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
     @Query private var profiles: [UserProfile]
     @State private var showingSignOutAlert = false
+    @State private var showingDeleteAccountAlert = false
+    @State private var showingPhotoPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
     private var profile: UserProfile? { profiles.first }
 
@@ -18,13 +23,25 @@ struct ProfileView: View {
                     Section {
                         HStack(spacing: 16) {
                             ZStack {
-                                Circle()
-                                    .fill(Color.romanSurface)
-                                    .frame(width: 68, height: 68)
-                                    .overlay(Circle().stroke(LinearGradient.romanGoldGradient, lineWidth: 1.5))
-                                Text(initials)
-                                    .font(.system(size: 26, weight: .black, design: .serif))
-                                    .foregroundStyle(LinearGradient.romanGoldGradient)
+                                if let profile = profile, let photoData = profile.photoData, let uiImage = UIImage(data: photoData) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 68, height: 68)
+                                        .clipShape(Circle())
+                                        .overlay(Circle().stroke(LinearGradient.romanGoldGradient, lineWidth: 1.5))
+                                } else {
+                                    Circle()
+                                        .fill(Color.romanSurface)
+                                        .frame(width: 68, height: 68)
+                                        .overlay(Circle().stroke(LinearGradient.romanGoldGradient, lineWidth: 1.5))
+                                    Text(initials)
+                                        .font(.system(size: 26, weight: .black, design: .serif))
+                                        .foregroundStyle(LinearGradient.romanGoldGradient)
+                                }
+                            }
+                            .onTapGesture {
+                                showingPhotoPicker = true
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(profile?.fullName ?? "Athlete")
@@ -84,6 +101,12 @@ struct ProfileView: View {
                                 .foregroundStyle(.romanCrimson)
                         }
                         .listRowBackground(Color.romanSurface)
+                        
+                        Button(role: .destructive, action: { showingDeleteAccountAlert = true }) {
+                            Label("Delete Account", systemImage: "trash.fill")
+                                .foregroundStyle(.romanCrimson)
+                        }
+                        .listRowBackground(Color.romanSurface)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -97,7 +120,37 @@ struct ProfileView: View {
             } message: {
                 Text("You will need to sign in again to access your workouts.")
             }
+            .alert("Delete Account?", isPresented: $showingDeleteAccountAlert) {
+                Button("Delete Account", role: .destructive) { deleteAccount() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete all your data, including workouts, exercises, and profile information. This action cannot be undone.")
+            }
+            .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared())
+            .onChange(of: selectedPhotoItem) { oldValue, newValue in
+                Task {
+                    if let data = try? await newValue?.loadTransferable(type: Data.self), let profile = profile {
+                        profile.photoData = data
+                        try? context.save()
+                    }
+                }
+            }
         }
+    }
+
+    private func deleteAccount() {
+        // Delete all user data
+        do {
+            try context.delete(model: UserProfile.self)
+            try context.delete(model: WorkoutSession.self)
+            try context.delete(model: WorkoutExercise.self)
+            try context.delete(model: ExerciseSet.self)
+            // Note: Exercises are seeded, so don't delete them
+            try context.save()
+        } catch {
+            print("Error deleting data: \(error)")
+        }
+        authManager.signOut()
     }
 
     // MARK: - Helpers
