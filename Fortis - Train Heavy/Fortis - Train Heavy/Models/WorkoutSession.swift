@@ -38,8 +38,6 @@ final class WorkoutSession {
     }
 }
 
-extension WorkoutSession: Identifiable {}
-
 // MARK: - WorkoutExercise (join model: session <-> exercise with sets)
 @Model
 final class WorkoutExercise {
