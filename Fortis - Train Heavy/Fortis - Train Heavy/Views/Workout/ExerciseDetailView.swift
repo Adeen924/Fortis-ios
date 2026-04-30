@@ -12,37 +12,36 @@ struct ExerciseDetailView: View {
             Color.romanBackground.ignoresSafeArea()
 
             ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Exercise Header
-                        headerSection
+                VStack(alignment: .leading, spacing: 16) {
+                    // Exercise Header
+                    headerSection
 
-                        // Media Demonstration
-                        mediaSection
-                        
-                        // Muscle Map
-                        muscleMapSection
-                        
-                        // Exercise Details
-                        detailsSection
-                        
-                        // Instructions
-                        if !exercise.instructions.isEmpty {
-                            instructionsSection
-                        }
-                        
-                        // Recommendation Info (if provided)
-                        if let rec = recommendation {
-                            recommendationSection(rec)
-                        }
+                    // Media Demonstration
+                    mediaSection
+                    
+                    // Muscle Map
+                    muscleMapSection
+                    
+                    // Exercise Details
+                    detailsSection
+                    
+                    // Instructions
+                    if !exercise.instructions.isEmpty {
+                        instructionsSection
                     }
-                    .padding()
-                    .padding(.bottom, 20)
+                    
+                    // Recommendation Info (if provided)
+                    if let rec = recommendation {
+                        recommendationSection(rec)
+                    }
                 }
+                .padding()
+                .padding(.bottom, 20)
             }
-            .navigationTitle(exercise.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
+        .navigationTitle(exercise.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .preferredColorScheme(.dark)
     }
 
