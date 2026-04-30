@@ -190,6 +190,14 @@ struct ActiveWorkoutView: View {
         let session = viewModel.finishWorkout(context: modelContext)
         finishedSession = session
     }
+
+    private func formattedWeight(_ value: Double) -> String {
+        let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1_000_000 { return String(format: "%.1fM %@", converted / 1_000_000, symbol) }
+        if abs(converted) >= 1_000 { return String(format: "%.1fk %@", converted / 1_000, symbol) }
+        return String(format: "%.0f %@", converted, symbol)
+    }
 }
 
 // MARK: - Exercise Log Card
@@ -296,6 +304,14 @@ struct ExerciseLogCard: View {
             Button("Cancel", role: .cancel) {}
         }
     }
+
+    private func formattedWeight(_ value: Double) -> String {
+        let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
+        let symbol = appSettings.weightUnit.symbol
+        if abs(converted) >= 1_000_000 { return String(format: "%.1fM %@", converted / 1_000_000, symbol) }
+        if abs(converted) >= 1_000 { return String(format: "%.1fk %@", converted / 1_000, symbol) }
+        return String(format: "%.0f %@", converted, symbol)
+    }
 }
 
 // MARK: - Set Row
@@ -332,7 +348,7 @@ struct SetRow: View {
                 .padding(.vertical, 7)
                 .background(Color.romanSurfaceHigh)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
-                .onChange(of: weightText) { _, new in
+                .onChange(of: weightText) { new in
                     if let displayWeight = Double(new), let storedWeight = storedWeight(from: displayWeight) {
                         onUpdate(Int(repsText) ?? set.reps, storedWeight)
                     }
@@ -347,7 +363,7 @@ struct SetRow: View {
                 .padding(.vertical, 7)
                 .background(Color.romanSurfaceHigh)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
-                .onChange(of: repsText) { _, new in
+                .onChange(of: repsText) { new in
                     if let r = Int(new) {
                         let displayWeight = Double(weightText) ?? (appSettings.weightUnit == .kg ? set.weight * 0.45359237 : set.weight)
                         onUpdate(r, storedWeight(from: displayWeight) ?? set.weight)
@@ -366,7 +382,9 @@ struct SetRow: View {
         .background(set.isCompleted ? Color.romanGoldDim.opacity(0.12) : Color.clear)
         .animation(.easeInOut(duration: 0.15), value: set.isCompleted)
         .onAppear { if set.weight > 0 { weightText = formattedDisplayWeight() } }
-        .onChange(of: appSettings.weightUnit) { _ in if set.weight > 0 { weightText = formattedDisplayWeight() } }
+        .onChange(of: appSettings.weightUnit) {
+            if set.weight > 0 { weightText = formattedDisplayWeight() }
+        }
     }
 
     private func formattedDisplayWeight() -> String {
