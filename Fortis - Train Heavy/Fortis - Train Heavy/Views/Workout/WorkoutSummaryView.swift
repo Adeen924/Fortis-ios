@@ -111,11 +111,16 @@ struct WorkoutSummaryView: View {
             guard let newItem else { return }
             Task {
                 isGeneratingImage = true
+                // Load the photo into a local var — @State updates are async so
+                // reading backgroundImage on the very next line would give nil.
+                var pickedImage: UIImage? = nil
                 if let data = try? await newItem.loadTransferable(type: Data.self),
                    let uiImage = UIImage(data: data) {
+                    pickedImage = uiImage
                     backgroundImage = uiImage
                 }
-                shareImage = generateShareImage(background: backgroundImage)
+                let muscleMap = renderMuscleMapImage()
+                shareImage = generateShareImage(background: pickedImage, muscleMap: muscleMap)
                 isGeneratingImage = false
                 showShareSheet = true
             }
@@ -259,10 +264,30 @@ struct WorkoutSummaryView: View {
 
     // MARK: - Image Generation
 
-    /// Renders a 9:16 shareable image using UIGraphicsImageRenderer.
-    /// The user's chosen photo fills the background; workout stats are overlaid
-    /// on a semi-transparent panel at the bottom, with the Fortis shield branding at the top.
-    private func generateShareImage(background: UIImage?) -> UIImage {
+    /// Renders the MuscleMapView to a UIImage using ImageRenderer.
+    /// Must be called on the MainActor. Uses a query-free variant to avoid
+    /// SwiftData context issues inside ImageRenderer.
+    @MainActor
+    private func renderMuscleMapImage() -> UIImage? {
+        let gender = profiles.first?.gender ?? "male"
+        let mapView = ShareMuscleMapView(
+            primaryMuscles: combinedPrimaryMuscles,
+            secondaryMuscles: combinedSecondaryMuscles,
+            gender: gender
+        )
+        .frame(width: 960, height: 520)
+        .background(Color.clear)
+
+        let renderer = ImageRenderer(content: mapView)
+        renderer.scale = 2.0
+        return renderer.uiImage
+    }
+
+    /// Composites a 1080×1920 (9:16) shareable image.
+    /// Background: user photo (aspect-fill) with darkening overlay.
+    /// Middle: muscle map rendered from ShareMuscleMapView.
+    /// Bottom: semi-transparent stats panel with workout data.
+    private func generateShareImage(background: UIImage?, muscleMap: UIImage?) -> UIImage {
         let width: CGFloat = 1080
         let height: CGFloat = 1920
         let size = CGSize(width: width, height: height)
@@ -272,18 +297,13 @@ struct WorkoutSummaryView: View {
             let cgCtx = ctx.cgContext
 
             // ── Background ──────────────────────────────────────────────────
+            UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
+            UIRectFill(CGRect(origin: .zero, size: size))
+
             if let bg = background {
-                // Fill then aspect-fill the photo
-                UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
-                UIRectFill(CGRect(origin: .zero, size: size))
                 let imgRect = aspectFillRect(imageSize: bg.size, targetSize: size)
                 bg.draw(in: imgRect)
-                // Darken the photo so text is legible
-                UIColor.black.withAlphaComponent(0.45).setFill()
-                UIRectFill(CGRect(origin: .zero, size: size))
-            } else {
-                // No photo — use the dark Roman background
-                UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
+                UIColor.black.withAlphaComponent(0.50).setFill()
                 UIRectFill(CGRect(origin: .zero, size: size))
             }
 
@@ -305,43 +325,57 @@ struct WorkoutSummaryView: View {
                 withAttributes: fortisAttrs
             )
 
+            // ── Muscle map ───────────────────────────────────────────────────
+            let mapMargin: CGFloat = 60
+            let mapW: CGFloat = width - mapMargin * 2
+            let mapH: CGFloat = mapW * (520.0 / 960.0)  // preserve aspect ratio
+            let mapY: CGFloat = shieldY + shieldSize + 68
+            let mapRect = CGRect(x: mapMargin, y: mapY, width: mapW, height: mapH)
+
+            if let mapImg = muscleMap {
+                // Rounded clip for the muscle map
+                cgCtx.saveGState()
+                let clipPath = UIBezierPath(roundedRect: mapRect, cornerRadius: 20)
+                clipPath.addClip()
+                mapImg.draw(in: mapRect)
+                cgCtx.restoreGState()
+            }
+
             // ── Stats overlay panel ──────────────────────────────────────────
             let panelMargin: CGFloat = 48
-            let panelTop: CGFloat = height * 0.52
-            let panelHeight: CGFloat = height - panelTop - panelMargin
-            let panelRect = CGRect(x: panelMargin, y: panelTop, width: width - panelMargin * 2, height: panelHeight)
+            let panelTop: CGFloat = mapY + mapH + 32
+            let panelH: CGFloat = height - panelTop - panelMargin
+            let panelRect = CGRect(x: panelMargin, y: panelTop, width: width - panelMargin * 2, height: panelH)
 
-            // Rounded rect panel
             let panelPath = UIBezierPath(roundedRect: panelRect, cornerRadius: 28)
-            UIColor.black.withAlphaComponent(0.72).setFill()
+            UIColor.black.withAlphaComponent(0.75).setFill()
             panelPath.fill()
-
-            // Gold border
             UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.8).setStroke()
             panelPath.lineWidth = 2.5
             panelPath.stroke()
 
             // Workout name
             let titleAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 42, weight: .heavy),
+                .font: UIFont.systemFont(ofSize: 40, weight: .heavy),
                 .foregroundColor: UIColor.white
             ]
             let titleStr = session.name as NSString
-            let titleSize = titleStr.boundingRect(
-                with: CGSize(width: panelRect.width - 48, height: .infinity),
+            let titleBounds = titleStr.boundingRect(
+                with: CGSize(width: panelRect.width - 56, height: .infinity),
                 options: .usesLineFragmentOrigin,
                 attributes: titleAttrs,
                 context: nil
             )
             titleStr.draw(
-                with: CGRect(x: panelRect.minX + 28, y: panelRect.minY + 32, width: panelRect.width - 56, height: titleSize.height),
+                with: CGRect(x: panelRect.minX + 28, y: panelRect.minY + 28,
+                             width: panelRect.width - 56, height: titleBounds.height),
                 options: .usesLineFragmentOrigin,
                 attributes: titleAttrs,
                 context: nil
             )
 
-            // Separator line
-            let separatorY = panelRect.minY + 32 + titleSize.height + 20
+            // Separator
+            let separatorY = panelRect.minY + 28 + titleBounds.height + 18
             UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.5).setStroke()
             let sep = UIBezierPath()
             sep.move(to: CGPoint(x: panelRect.minX + 28, y: separatorY))
@@ -349,63 +383,26 @@ struct WorkoutSummaryView: View {
             sep.lineWidth = 1.5
             sep.stroke()
 
-            // Stats rows
-            let statY = separatorY + 28
+            // Stats grid
+            let statY = separatorY + 24
             let col1X = panelRect.minX + 28
             let col2X = panelRect.midX + 14
-            let colWidth = panelRect.width / 2 - 42
+            let colW = panelRect.width / 2 - 42
 
-            drawStatBlock(
-                label: "DURATION", value: durationFormatted,
-                x: col1X, y: statY, width: colWidth, in: cgCtx
-            )
-            drawStatBlock(
-                label: "TOTAL VOLUME", value: volumeFormatted,
-                x: col2X, y: statY, width: colWidth, in: cgCtx
-            )
-
-            let row2Y = statY + 100
-            drawStatBlock(
-                label: "EXERCISES", value: "\(session.workoutExercises.count)",
-                x: col1X, y: row2Y, width: colWidth, in: cgCtx
-            )
-            drawStatBlock(
-                label: "TOTAL SETS", value: "\(session.totalSets)",
-                x: col2X, y: row2Y, width: colWidth, in: cgCtx
-            )
-
-            // Muscles trained
-            if !combinedPrimaryMuscles.isEmpty {
-                let musclesY = row2Y + 110
-                let labelAttrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 18, weight: .bold),
-                    .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85),
-                    .kern: 3
-                ]
-                ("MUSCLES TRAINED" as NSString).draw(at: CGPoint(x: col1X, y: musclesY), withAttributes: labelAttrs)
-
-                let muscleNames = combinedPrimaryMuscles.prefix(4).joined(separator: "  ·  ").uppercased()
-                let muscleAttrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 26, weight: .semibold),
-                    .foregroundColor: UIColor.white
-                ]
-                (muscleNames as NSString).draw(
-                    with: CGRect(x: col1X, y: musclesY + 30, width: panelRect.width - 56, height: 80),
-                    options: .usesLineFragmentOrigin,
-                    attributes: muscleAttrs,
-                    context: nil
-                )
-            }
+            drawStatBlock(label: "DURATION",     value: durationFormatted,                x: col1X, y: statY,        width: colW, in: cgCtx)
+            drawStatBlock(label: "TOTAL VOLUME", value: volumeFormatted,                  x: col2X, y: statY,        width: colW, in: cgCtx)
+            drawStatBlock(label: "EXERCISES",    value: "\(session.workoutExercises.count)", x: col1X, y: statY + 96, width: colW, in: cgCtx)
+            drawStatBlock(label: "TOTAL SETS",   value: "\(session.totalSets)",           x: col2X, y: statY + 96,  width: colW, in: cgCtx)
 
             // Hashtag footer
             let hashAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.55)
+                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.50)
             ]
             let hashStr = "#Fortis  #WorkoutComplete  #Fitness" as NSString
-            let hashSize = hashStr.size(withAttributes: hashAttrs)
+            let hashSz = hashStr.size(withAttributes: hashAttrs)
             hashStr.draw(
-                at: CGPoint(x: (width - hashSize.width) / 2, y: panelRect.maxY - 46),
+                at: CGPoint(x: (width - hashSz.width) / 2, y: panelRect.maxY - 42),
                 withAttributes: hashAttrs
             )
         }
@@ -651,5 +648,55 @@ struct MuscleSummaryHeatMap: View {
         }
         .padding(14)
         .romanCard()
+    }
+}
+
+// MARK: - Share Muscle Map (no @Query — safe to use with ImageRenderer)
+
+struct ShareMuscleMapView: View {
+    let primaryMuscles: [String]
+    let secondaryMuscles: [String]
+    let gender: String
+
+    private var bodyGender: BodyGender { gender == "female" ? .female : .male }
+
+    var body: some View {
+        HStack(spacing: 20) {
+            highlightedBodyView(side: .front).frame(maxWidth: .infinity)
+            highlightedBodyView(side: .back).frame(maxWidth: .infinity)
+        }
+        .padding(16)
+        .background(Color(red: 0.15, green: 0.10, blue: 0.02))
+    }
+
+    private func highlightedBodyView(side: BodySide) -> some View {
+        var view = BodyView(gender: bodyGender, side: side).bodyStyle(.minimal)
+        for muscle in primaryMuscles.compactMap({ mapToMuscle($0) }) {
+            view = view.highlight(muscle, color: Color(red: 0.83, green: 0.57, blue: 0.04).opacity(0.9))
+        }
+        for muscle in secondaryMuscles.compactMap({ mapToMuscle($0) }) {
+            view = view.highlight(muscle, color: Color(red: 0.83, green: 0.57, blue: 0.04).opacity(0.45))
+        }
+        return view
+    }
+
+    private func mapToMuscle(_ name: String) -> Muscle? {
+        switch name.lowercased() {
+        case "chest":      return .chest
+        case "shoulders":  return .deltoids
+        case "biceps":     return .biceps
+        case "triceps":    return .triceps
+        case "forearms":   return .forearm
+        case "core":       return .obliques
+        case "abs":        return .abs
+        case "quads":      return .quadriceps
+        case "glutes":     return .gluteal
+        case "hamstrings": return .hamstring
+        case "calves":     return .calves
+        case "back", "lats": return .upperBack
+        case "lower back": return .lowerBack
+        case "traps":      return .trapezius
+        default:           return nil
+        }
     }
 }
