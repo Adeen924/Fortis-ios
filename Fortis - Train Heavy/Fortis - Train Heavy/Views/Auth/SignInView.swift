@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AuthenticationServices
 
 struct SignInView: View {
     @Environment(AuthManager.self) private var authManager
@@ -11,6 +12,10 @@ struct SignInView: View {
     @State private var isLoading   = false
     @State private var errorText: String? = nil
     @State private var showingForgotPassword = false
+    @State private var showingProfileCompletion = false
+    @State private var appleFirstName = ""
+    @State private var appleLastName = ""
+    @State private var appleEmail: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -69,6 +74,15 @@ struct SignInView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
+                        SignInWithAppleButton(.signIn) { request in
+                            request.requestedScopes = [.fullName, .email]
+                        } onCompletion: { result in
+                            handleAppleSignIn(result)
+                        }
+                        .signInWithAppleButtonStyle(.white)
+                        .frame(height: 52)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+
                         // Sign In Button
                         Button(action: attemptSignIn) {
                             HStack(spacing: 8) {
@@ -123,8 +137,37 @@ struct SignInView: View {
             } message: {
                 Text("Password reset requires a backend integration. Please contact support or re-create your account.")
             }
+            .sheet(isPresented: $showingProfileCompletion) {
+                SocialProfileCompletionView(firstName: appleFirstName, lastName: appleLastName, email: appleEmail)
+                    .environment(authManager)
+            }
+            .onChange(of: authManager.isAuthenticated) { authenticated in
+                if authenticated {
+                    showingProfileCompletion = false
+                }
+            }
+            .onChange(of: authManager.needsProfileCompletion) { needsCompletion in
+                if !needsCompletion {
+                    showingProfileCompletion = false
+                }
+            }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .success(let auth):
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential else { return }
+            let userId = credential.user
+            authManager.beginSocialOnboarding(userID: userId)
+            appleFirstName = credential.fullName?.givenName ?? ""
+            appleLastName = credential.fullName?.familyName ?? ""
+            appleEmail = credential.email
+            showingProfileCompletion = true
+        case .failure:
+            errorText = "Apple Sign In failed. Please try again."
+        }
     }
 
     private func attemptSignIn() {

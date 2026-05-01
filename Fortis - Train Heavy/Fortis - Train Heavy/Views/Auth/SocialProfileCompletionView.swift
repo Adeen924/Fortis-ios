@@ -17,8 +17,15 @@ struct SocialProfileCompletionView: View {
     @State private var heightInches = 10
     @State private var weightText   = ""
     @State private var selectedGoals: Set<String> = []
+    @State private var email: String? = nil
     @State private var validationError: String? = nil
     @State private var isCreating = false
+
+    init(firstName: String = "", lastName: String = "", email: String? = nil) {
+        self._firstName = State(initialValue: firstName)
+        self._lastName = State(initialValue: lastName)
+        self._email = State(initialValue: email)
+    }
 
     var body: some View {
         NavigationStack {
@@ -181,6 +188,7 @@ struct SocialProfileCompletionView: View {
             firstName: firstName.trimmingCharacters(in: .whitespaces),
             lastName:  lastName.trimmingCharacters(in: .whitespaces),
             username:  username.trimmingCharacters(in: .whitespaces).lowercased(),
+            email:      email,
             age:          Int(age) ?? 18,
             gender:       gender,
             heightFeet:   heightFeet,
