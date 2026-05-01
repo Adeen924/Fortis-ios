@@ -101,6 +101,9 @@ struct WorkoutSummaryView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showShareSheet) {
+            ActivityView(activityItems: shareItems)
+        }
     }
 
     // MARK: - Hero
@@ -220,10 +223,6 @@ struct WorkoutSummaryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
-        .sheet(isPresented: $showShareSheet) {
-            ActivityView(activityItems: shareItems)
-                .ignoresSafeArea()
-        }
     }
 
     private func shareExternally() {
@@ -231,6 +230,7 @@ struct WorkoutSummaryView: View {
         if let image = createShareSnapshot() {
             items.insert(image, at: 0)
         }
+        guard !items.isEmpty else { return }
         shareItems = items
         showShareSheet = true
     }
@@ -333,7 +333,18 @@ struct ActivityView: UIViewControllerRepresentable {
     let activityItems: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        controller.modalPresentationStyle = .automatic
+
+        if let popover = controller.popoverPresentationController {
+            popover.permittedArrowDirections = []
+            popover.sourceRect = CGRect(x: UIScreen.main.bounds.midX, y: UIScreen.main.bounds.midY, width: 1, height: 1)
+            popover.sourceView = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first?.windows.first { $0.isKeyWindow }
+        }
+
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
