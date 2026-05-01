@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import PhotosUI
 
 struct PersonalRecord: Identifiable {
     let id = UUID()
@@ -19,28 +20,27 @@ struct WorkoutSummaryView: View {
     @Query(sort: \WorkoutSession.startDate, order: .reverse) private var pastSessions: [WorkoutSession]
 
     @State private var showShareSheet = false
-    @State private var shareItems: [Any] = []
+    @State private var shareImage: UIImage? = nil
+    @State private var showPhotoPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var backgroundImage: UIImage? = nil
+    @State private var isGeneratingImage = false
 
     private var combinedPrimaryMuscles: [String] {
         var muscles = Set<String>()
-        for ex in session.workoutExercises {
-            muscles.formUnion(ex.primaryMuscles)
-        }
+        for ex in session.workoutExercises { muscles.formUnion(ex.primaryMuscles) }
         return Array(muscles)
     }
 
     private var combinedSecondaryMuscles: [String] {
         var muscles = Set<String>()
-        for ex in session.workoutExercises {
-            muscles.formUnion(ex.secondaryMuscles ?? [])
-        }
+        for ex in session.workoutExercises { muscles.formUnion(ex.secondaryMuscles ?? []) }
         return Array(muscles)
     }
 
     private var personalRecords: [PersonalRecord] {
         var records: [PersonalRecord] = []
         let pastMaxes = getPastMaxes()
-
         for workoutEx in session.workoutExercises {
             for set in workoutEx.sets where set.isCompleted {
                 let key = "\(workoutEx.exerciseID)_\(set.reps)"
@@ -101,8 +101,29 @@ struct WorkoutSummaryView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedPhotoItem,
+            matching: .images,
+            photoLibrary: .shared()
+        )
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                isGeneratingImage = true
+                if let data = try? await newItem.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data) {
+                    backgroundImage = uiImage
+                }
+                shareImage = generateShareImage(background: backgroundImage)
+                isGeneratingImage = false
+                showShareSheet = true
+            }
+        }
         .sheet(isPresented: $showShareSheet) {
-            ActivityView(activityItems: shareItems)
+            if let image = shareImage {
+                ActivityView(activityItems: [image])
+            }
         }
     }
 
@@ -123,10 +144,10 @@ struct WorkoutSummaryView: View {
     // MARK: - Stats Grid
     private var statsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            SummaryStatCard(icon: "clock.fill",      iconColor: .romanGold,    label: "Duration",    value: durationFormatted)
+            SummaryStatCard(icon: "clock.fill",      iconColor: .romanGold,    label: "Duration",     value: durationFormatted)
             SummaryStatCard(icon: "scalemass.fill",  iconColor: .romanBronze,  label: "Total Volume", value: volumeFormatted)
-            SummaryStatCard(icon: "list.number",     iconColor: .romanGold,    label: "Total Sets",  value: "\(session.totalSets)")
-            SummaryStatCard(icon: "dumbbell.fill",   iconColor: .romanCrimson, label: "Exercises",   value: "\(session.workoutExercises.count)")
+            SummaryStatCard(icon: "list.number",     iconColor: .romanGold,    label: "Total Sets",   value: "\(session.totalSets)")
+            SummaryStatCard(icon: "dumbbell.fill",   iconColor: .romanCrimson, label: "Exercises",    value: "\(session.workoutExercises.count)")
         }
     }
 
@@ -137,16 +158,12 @@ struct WorkoutSummaryView: View {
         return "\(s)s"
     }
 
-    private var volumeFormatted: String {
-        return formattedWeight(session.totalVolume)
-    }
+    private var volumeFormatted: String { formattedWeight(session.totalVolume) }
 
     private func formattedWeight(_ value: Double) -> String {
         let converted = appSettings.weightUnit == .kg ? value * 0.45359237 : value
         let symbol = appSettings.weightUnit.symbol
-        if abs(converted) >= 1000 {
-            return String(format: "%.1fk %@", converted / 1000, symbol)
-        }
+        if abs(converted) >= 1000 { return String(format: "%.1fk %@", converted / 1000, symbol) }
         return String(format: "%.0f %@", converted, symbol)
     }
 
@@ -212,47 +229,253 @@ struct WorkoutSummaryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
-            Button(action: shareExternally) {
-                Label("Share Externally", systemImage: "square.and.arrow.up")
-                    .font(.system(size: 12, weight: .black))
-                    .tracking(1)
-                    .foregroundStyle(.romanBackground)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(LinearGradient.romanGoldGradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            Button(action: startExternalShare) {
+                Group {
+                    if isGeneratingImage {
+                        ProgressView().tint(.romanBackground)
+                    } else {
+                        Label("Share Externally", systemImage: "square.and.arrow.up")
+                            .font(.system(size: 12, weight: .black))
+                            .tracking(1)
+                            .foregroundStyle(.romanBackground)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(LinearGradient.romanGoldGradient)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .disabled(isGeneratingImage)
         }
     }
 
-    private func shareExternally() {
-        var items: [Any] = [shareText]
-        if let image = createShareSnapshot() {
-            items.insert(image, at: 0)
-        }
-        guard !items.isEmpty else { return }
-        shareItems = items
-        showShareSheet = true
+    private func startExternalShare() {
+        // Reset previous state then open photo picker
+        selectedPhotoItem = nil
+        backgroundImage = nil
+        shareImage = nil
+        showPhotoPicker = true
     }
 
-    private func createShareSnapshot() -> UIImage? {
-        let shareCard = WorkoutShareCard(
-            title: session.name,
-            duration: durationFormatted,
-            volume: volumeFormatted,
-            exerciseCount: session.workoutExercises.count,
-            muscles: combinedPrimaryMuscles,
-            primaryMuscles: combinedPrimaryMuscles,
-            secondaryMuscles: combinedSecondaryMuscles
+    // MARK: - Image Generation
+
+    /// Renders a 9:16 shareable image using UIGraphicsImageRenderer.
+    /// The user's chosen photo fills the background; workout stats are overlaid
+    /// on a semi-transparent panel at the bottom, with the Fortis shield branding at the top.
+    private func generateShareImage(background: UIImage?) -> UIImage {
+        let width: CGFloat = 1080
+        let height: CGFloat = 1920
+        let size = CGSize(width: width, height: height)
+
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            let cgCtx = ctx.cgContext
+
+            // ── Background ──────────────────────────────────────────────────
+            if let bg = background {
+                // Fill then aspect-fill the photo
+                UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
+                UIRectFill(CGRect(origin: .zero, size: size))
+                let imgRect = aspectFillRect(imageSize: bg.size, targetSize: size)
+                bg.draw(in: imgRect)
+                // Darken the photo so text is legible
+                UIColor.black.withAlphaComponent(0.45).setFill()
+                UIRectFill(CGRect(origin: .zero, size: size))
+            } else {
+                // No photo — use the dark Roman background
+                UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
+                UIRectFill(CGRect(origin: .zero, size: size))
+            }
+
+            // ── Top branding ─────────────────────────────────────────────────
+            let shieldSize: CGFloat = 80
+            let shieldX = (width - shieldSize) / 2
+            let shieldY: CGFloat = 72
+            drawShield(in: cgCtx, rect: CGRect(x: shieldX, y: shieldY, width: shieldSize, height: shieldSize))
+
+            let fortisAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 28, weight: .black),
+                .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 1),
+                .kern: 12
+            ]
+            let fortisStr = "FORTIS" as NSString
+            let fortisSize = fortisStr.size(withAttributes: fortisAttrs)
+            fortisStr.draw(
+                at: CGPoint(x: (width - fortisSize.width) / 2, y: shieldY + shieldSize + 14),
+                withAttributes: fortisAttrs
+            )
+
+            // ── Stats overlay panel ──────────────────────────────────────────
+            let panelMargin: CGFloat = 48
+            let panelTop: CGFloat = height * 0.52
+            let panelHeight: CGFloat = height - panelTop - panelMargin
+            let panelRect = CGRect(x: panelMargin, y: panelTop, width: width - panelMargin * 2, height: panelHeight)
+
+            // Rounded rect panel
+            let panelPath = UIBezierPath(roundedRect: panelRect, cornerRadius: 28)
+            UIColor.black.withAlphaComponent(0.72).setFill()
+            panelPath.fill()
+
+            // Gold border
+            UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.8).setStroke()
+            panelPath.lineWidth = 2.5
+            panelPath.stroke()
+
+            // Workout name
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 42, weight: .heavy),
+                .foregroundColor: UIColor.white
+            ]
+            let titleStr = session.name as NSString
+            let titleSize = titleStr.boundingRect(
+                with: CGSize(width: panelRect.width - 48, height: .infinity),
+                options: .usesLineFragmentOrigin,
+                attributes: titleAttrs,
+                context: nil
+            )
+            titleStr.draw(
+                with: CGRect(x: panelRect.minX + 28, y: panelRect.minY + 32, width: panelRect.width - 56, height: titleSize.height),
+                options: .usesLineFragmentOrigin,
+                attributes: titleAttrs,
+                context: nil
+            )
+
+            // Separator line
+            let separatorY = panelRect.minY + 32 + titleSize.height + 20
+            UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.5).setStroke()
+            let sep = UIBezierPath()
+            sep.move(to: CGPoint(x: panelRect.minX + 28, y: separatorY))
+            sep.addLine(to: CGPoint(x: panelRect.maxX - 28, y: separatorY))
+            sep.lineWidth = 1.5
+            sep.stroke()
+
+            // Stats rows
+            let statY = separatorY + 28
+            let col1X = panelRect.minX + 28
+            let col2X = panelRect.midX + 14
+            let colWidth = panelRect.width / 2 - 42
+
+            drawStatBlock(
+                label: "DURATION", value: durationFormatted,
+                x: col1X, y: statY, width: colWidth, in: cgCtx
+            )
+            drawStatBlock(
+                label: "TOTAL VOLUME", value: volumeFormatted,
+                x: col2X, y: statY, width: colWidth, in: cgCtx
+            )
+
+            let row2Y = statY + 100
+            drawStatBlock(
+                label: "EXERCISES", value: "\(session.workoutExercises.count)",
+                x: col1X, y: row2Y, width: colWidth, in: cgCtx
+            )
+            drawStatBlock(
+                label: "TOTAL SETS", value: "\(session.totalSets)",
+                x: col2X, y: row2Y, width: colWidth, in: cgCtx
+            )
+
+            // Muscles trained
+            if !combinedPrimaryMuscles.isEmpty {
+                let musclesY = row2Y + 110
+                let labelAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 18, weight: .bold),
+                    .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85),
+                    .kern: 3
+                ]
+                ("MUSCLES TRAINED" as NSString).draw(at: CGPoint(x: col1X, y: musclesY), withAttributes: labelAttrs)
+
+                let muscleNames = combinedPrimaryMuscles.prefix(4).joined(separator: "  ·  ").uppercased()
+                let muscleAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 26, weight: .semibold),
+                    .foregroundColor: UIColor.white
+                ]
+                (muscleNames as NSString).draw(
+                    with: CGRect(x: col1X, y: musclesY + 30, width: panelRect.width - 56, height: 80),
+                    options: .usesLineFragmentOrigin,
+                    attributes: muscleAttrs,
+                    context: nil
+                )
+            }
+
+            // Hashtag footer
+            let hashAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.55)
+            ]
+            let hashStr = "#Fortis  #WorkoutComplete  #Fitness" as NSString
+            let hashSize = hashStr.size(withAttributes: hashAttrs)
+            hashStr.draw(
+                at: CGPoint(x: (width - hashSize.width) / 2, y: panelRect.maxY - 46),
+                withAttributes: hashAttrs
+            )
+        }
+    }
+
+    // MARK: - Draw helpers
+
+    private func drawStatBlock(label: String, value: String, x: CGFloat, y: CGFloat, width: CGFloat, in ctx: CGContext) {
+        let labelAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 17, weight: .bold),
+            .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85),
+            .kern: 2.5
+        ]
+        (label as NSString).draw(at: CGPoint(x: x, y: y), withAttributes: labelAttrs)
+
+        let valueAttrs: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 38, weight: .heavy),
+            .foregroundColor: UIColor.white
+        ]
+        (value as NSString).draw(
+            with: CGRect(x: x, y: y + 26, width: width, height: 56),
+            options: .usesLineFragmentOrigin,
+            attributes: valueAttrs,
+            context: nil
         )
-        let renderer = ImageRenderer(content: shareCard)
-        renderer.scale = UIScreen.main.scale
-        return renderer.uiImage
     }
 
-    private var shareText: String {
-        let muscles = combinedPrimaryMuscles.joined(separator: ", ")
-        return "Just completed \(session.name)! 💪\n\nTotal Volume: \(volumeFormatted)\nDuration: \(durationFormatted)\nExercises: \(session.workoutExercises.count)\nMuscles Trained: \(muscles)\n\n#Fortis #Workout #Fitness"
+    /// Draws a simple shield shape as the Fortis branding icon.
+    private func drawShield(in ctx: CGContext, rect: CGRect) {
+        let gold = UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 1)
+        let w = rect.width; let h = rect.height
+        let cx = rect.midX; let top = rect.minY
+
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: cx, y: top))
+        path.addLine(to: CGPoint(x: rect.maxX, y: top + h * 0.18))
+        path.addLine(to: CGPoint(x: rect.maxX, y: top + h * 0.55))
+        path.addCurve(
+            to: CGPoint(x: cx, y: top + h),
+            controlPoint1: CGPoint(x: rect.maxX, y: top + h * 0.82),
+            controlPoint2: CGPoint(x: cx + w * 0.3, y: top + h * 0.95)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.minX, y: top + h * 0.55),
+            controlPoint1: CGPoint(x: cx - w * 0.3, y: top + h * 0.95),
+            controlPoint2: CGPoint(x: rect.minX, y: top + h * 0.82)
+        )
+        path.addLine(to: CGPoint(x: rect.minX, y: top + h * 0.18))
+        path.close()
+
+        gold.withAlphaComponent(0.25).setFill()
+        path.fill()
+        gold.setStroke()
+        path.lineWidth = 3
+        path.stroke()
+    }
+
+    /// Returns a rect that aspect-fill crops `imageSize` to `targetSize`.
+    private func aspectFillRect(imageSize: CGSize, targetSize: CGSize) -> CGRect {
+        let wRatio = targetSize.width / imageSize.width
+        let hRatio = targetSize.height / imageSize.height
+        let scale = max(wRatio, hRatio)
+        let scaledWidth = imageSize.width * scale
+        let scaledHeight = imageSize.height * scale
+        return CGRect(
+            x: (targetSize.width - scaledWidth) / 2,
+            y: (targetSize.height - scaledHeight) / 2,
+            width: scaledWidth,
+            height: scaledHeight
+        )
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -263,71 +486,7 @@ struct WorkoutSummaryView: View {
     }
 }
 
-struct WorkoutShareCard: View {
-    let title: String
-    let duration: String
-    let volume: String
-    let exerciseCount: Int
-    let muscles: [String]
-    let primaryMuscles: [String]
-    let secondaryMuscles: [String]
-
-    var body: some View {
-        ZStack {
-            Color.black
-            VStack(spacing: 18) {
-                Text(title)
-                    .font(.system(size: 32, weight: .heavy))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-
-                MuscleMapView(primaryMuscles: primaryMuscles, secondaryMuscles: secondaryMuscles)
-                    .frame(height: 380)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .padding(.horizontal, 16)
-
-                VStack(spacing: 10) {
-                    HStack {
-                        ShareStatLabel(title: "Duration", value: duration)
-                        ShareStatLabel(title: "Volume", value: volume)
-                    }
-                    HStack {
-                        ShareStatLabel(title: "Exercises", value: "\(exerciseCount)")
-                        ShareStatLabel(title: "Muscles", value: muscles.joined(separator: ", "))
-                    }
-                }
-                .padding(.horizontal, 18)
-
-                Text("#Fortis #Workout #Fitness")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.top, 12)
-            }
-            .padding(20)
-        }
-        .frame(width: 1080, height: 1620)
-    }
-}
-
-struct ShareStatLabel: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.white.opacity(0.7))
-            Text(value)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .minimumScaleFactor(0.65)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
+// MARK: - Activity View Representable
 
 struct ActivityView: UIViewControllerRepresentable {
     let activityItems: [Any]
@@ -338,7 +497,8 @@ struct ActivityView: UIViewControllerRepresentable {
 
         if let popover = controller.popoverPresentationController {
             popover.permittedArrowDirections = []
-            popover.sourceRect = CGRect(x: UIScreen.main.bounds.midX, y: UIScreen.main.bounds.midY, width: 1, height: 1)
+            let bounds = UIScreen.main.bounds
+            popover.sourceRect = CGRect(x: bounds.midX, y: bounds.midY, width: 1, height: 1)
             popover.sourceView = UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .first?.windows.first { $0.isKeyWindow }
@@ -351,6 +511,7 @@ struct ActivityView: UIViewControllerRepresentable {
 }
 
 // MARK: - Summary Stat Card
+
 struct SummaryStatCard: View {
     let icon: String
     let iconColor: Color
@@ -380,6 +541,7 @@ struct SummaryStatCard: View {
 }
 
 // MARK: - Exercise Summary Row
+
 struct ExerciseSummaryRow: View {
     @EnvironmentObject private var appSettings: AppSettings
     let workoutExercise: WorkoutExercise
@@ -434,6 +596,7 @@ struct ExerciseSummaryRow: View {
 }
 
 // MARK: - Muscle Heat Map
+
 struct MuscleSummaryHeatMap: View {
     let session: WorkoutSession
 
