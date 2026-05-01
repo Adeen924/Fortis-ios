@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UIKit
 import PhotosUI
+import MuscleMap
 
 struct PersonalRecord: Identifiable {
     let id = UUID()
