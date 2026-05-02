@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import CoreImage
 import PhotosUI
 import MuscleMap
 
@@ -13,6 +14,7 @@ struct PersonalRecord: Identifiable {
 }
 
 struct WorkoutSummaryView: View {
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var appSettings: AppSettings
     let session: WorkoutSession
     let onDismiss: () -> Void
@@ -26,6 +28,8 @@ struct WorkoutSummaryView: View {
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var backgroundImage: UIImage? = nil
     @State private var isGeneratingImage = false
+    @State private var showRenameAlert = false
+    @State private var workoutNameDraft = ""
 
     private var combinedPrimaryMuscles: [String] {
         var muscles = Set<String>()
@@ -88,7 +92,7 @@ struct WorkoutSummaryView: View {
                     .padding(.bottom, 32)
                 }
             }
-            .navigationTitle(session.name)
+            .navigationTitle("WORKOUT SUMMARY")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .environmentObject(appSettings)
@@ -99,6 +103,13 @@ struct WorkoutSummaryView: View {
                         .tracking(2)
                         .foregroundStyle(.romanGold)
                 }
+            }
+            .alert("Rename Workout", isPresented: $showRenameAlert) {
+                TextField("Workout name", text: $workoutNameDraft)
+                Button("Save") { renameWorkout() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Enter a name for this workout.")
             }
         }
         .preferredColorScheme(.dark)
@@ -139,6 +150,16 @@ struct WorkoutSummaryView: View {
             Text(session.name)
                 .font(.title2.bold())
                 .foregroundStyle(.romanParchment)
+                .onTapGesture {
+                    workoutNameDraft = session.name
+                    showRenameAlert = true
+                }
+                .contextMenu {
+                    Button("Rename") {
+                        workoutNameDraft = session.name
+                        showRenameAlert = true
+                    }
+                }
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -301,17 +322,31 @@ struct WorkoutSummaryView: View {
             UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
             UIRectFill(CGRect(origin: .zero, size: size))
 
+            var drawnBgRect = CGRect(origin: .zero, size: size)
             if let bg = background {
                 let imgRect = aspectFillRect(imageSize: bg.size, targetSize: size)
                 bg.draw(in: imgRect)
-                UIColor.black.withAlphaComponent(0.50).setFill()
+                drawnBgRect = imgRect
+                UIColor.black.withAlphaComponent(0.30).setFill()
                 UIRectFill(CGRect(origin: .zero, size: size))
             }
+
+            let blurredBackground = background.flatMap { blurImage($0, radius: 30) }
 
             // ── Top branding ─────────────────────────────────────────────────
             let shieldSize: CGFloat = 80
             let shieldX = (width - shieldSize) / 2
             let shieldY: CGFloat = 72
+            let logoRect = CGRect(x: shieldX - 24, y: shieldY - 18, width: shieldSize + 48, height: shieldSize + 72)
+            if let blurred = blurredBackground {
+                cgCtx.saveGState()
+                let logoPath = UIBezierPath(roundedRect: logoRect, cornerRadius: 28)
+                logoPath.addClip()
+                blurred.draw(in: drawnBgRect)
+                cgCtx.restoreGState()
+                UIColor(white: 0.04, alpha: 0.35).setFill()
+                logoPath.fill()
+            }
             drawShield(in: cgCtx, rect: CGRect(x: shieldX, y: shieldY, width: shieldSize, height: shieldSize))
 
             let fortisAttrs: [NSAttributedString.Key: Any] = [
@@ -326,36 +361,28 @@ struct WorkoutSummaryView: View {
                 withAttributes: fortisAttrs
             )
 
-            // ── Muscle map ───────────────────────────────────────────────────
-            let mapMargin: CGFloat = 60
-            let mapW: CGFloat = width - mapMargin * 2
-            let mapH: CGFloat = mapW * (520.0 / 960.0)  // preserve aspect ratio
-            let mapY: CGFloat = shieldY + shieldSize + 68
-            let mapRect = CGRect(x: mapMargin, y: mapY, width: mapW, height: mapH)
+            // ── Stats overlay panel ──────────────────────────────────────────
+            let panelMargin: CGFloat = 48
+            let panelTop: CGFloat = shieldY + shieldSize + 86
+            let panelH: CGFloat = 540
+            let panelRect = CGRect(x: panelMargin, y: panelTop, width: width - panelMargin * 2, height: panelH)
 
-            if let mapImg = muscleMap {
-                // Rounded clip for the muscle map
+            if let blurred = blurredBackground {
                 cgCtx.saveGState()
-                let clipPath = UIBezierPath(roundedRect: mapRect, cornerRadius: 20)
-                clipPath.addClip()
-                mapImg.draw(in: mapRect)
+                let panelPath = UIBezierPath(roundedRect: panelRect, cornerRadius: 28)
+                panelPath.addClip()
+                blurred.draw(in: drawnBgRect)
                 cgCtx.restoreGState()
             }
 
-            // ── Stats overlay panel ──────────────────────────────────────────
-            let panelMargin: CGFloat = 48
-            let panelTop: CGFloat = mapY + mapH + 32
-            let panelH: CGFloat = height - panelTop - panelMargin
-            let panelRect = CGRect(x: panelMargin, y: panelTop, width: width - panelMargin * 2, height: panelH)
-
             let panelPath = UIBezierPath(roundedRect: panelRect, cornerRadius: 28)
-            UIColor.black.withAlphaComponent(0.75).setFill()
+            UIColor(white: 0.05, alpha: 0.45).setFill()
             panelPath.fill()
             UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.8).setStroke()
             panelPath.lineWidth = 2.5
             panelPath.stroke()
 
-            // Workout name
+            // Workout title
             let titleAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 40, weight: .heavy),
                 .foregroundColor: UIColor.white
@@ -368,42 +395,67 @@ struct WorkoutSummaryView: View {
                 context: nil
             )
             titleStr.draw(
-                with: CGRect(x: panelRect.minX + 28, y: panelRect.minY + 28,
+                with: CGRect(x: panelRect.minX + 28, y: panelRect.minY + 24,
                              width: panelRect.width - 56, height: titleBounds.height),
                 options: .usesLineFragmentOrigin,
                 attributes: titleAttrs,
                 context: nil
             )
 
-            // Separator
-            let separatorY = panelRect.minY + 28 + titleBounds.height + 18
-            UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.5).setStroke()
-            let sep = UIBezierPath()
-            sep.move(to: CGPoint(x: panelRect.minX + 28, y: separatorY))
-            sep.addLine(to: CGPoint(x: panelRect.maxX - 28, y: separatorY))
-            sep.lineWidth = 1.5
-            sep.stroke()
+            let contentTop = panelRect.minY + 24 + titleBounds.height + 18
+            let leftWidth = panelRect.width * 0.45
+            let rightX = panelRect.minX + leftWidth + 20
+            let rightWidth = panelRect.width - leftWidth - 40
+            let mapHeight: CGFloat = 400
+            let mapRect = CGRect(x: panelRect.minX + 24, y: contentTop, width: leftWidth, height: mapHeight)
 
-            // Stats grid
-            let statY = separatorY + 24
-            let col1X = panelRect.minX + 28
-            let col2X = panelRect.midX + 14
-            let colW = panelRect.width / 2 - 42
+            if let mapImg = muscleMap {
+                cgCtx.saveGState()
+                let clipPath = UIBezierPath(roundedRect: mapRect, cornerRadius: 22)
+                clipPath.addClip()
+                mapImg.draw(in: mapRect)
+                cgCtx.restoreGState()
 
-            drawStatBlock(label: "DURATION",     value: durationFormatted,                x: col1X, y: statY,        width: colW, in: cgCtx)
-            drawStatBlock(label: "TOTAL VOLUME", value: volumeFormatted,                  x: col2X, y: statY,        width: colW, in: cgCtx)
-            drawStatBlock(label: "EXERCISES",    value: "\(session.workoutExercises.count)", x: col1X, y: statY + 96, width: colW, in: cgCtx)
-            drawStatBlock(label: "TOTAL SETS",   value: "\(session.totalSets)",           x: col2X, y: statY + 96,  width: colW, in: cgCtx)
+                UIColor(white: 0, alpha: 0.18).setFill()
+                UIBezierPath(roundedRect: mapRect, cornerRadius: 22).fill()
+            }
+
+            let statTitleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
+                .foregroundColor: UIColor(white: 0.95, alpha: 0.9),
+                .kern: 1.5
+            ]
+            let statValueAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 38, weight: .heavy),
+                .foregroundColor: UIColor.white
+            ]
+
+            let statLabels = ["DURATION", "TOTAL VOLUME", "EXERCISES", "TOTAL SETS"]
+            let statValues = [durationFormatted, volumeFormatted, "\(session.workoutExercises.count)", "\(session.totalSets)"]
+            let statYStart = contentTop
+            let statLineHeight: CGFloat = 90
+            for index in 0..<statLabels.count {
+                let rowY = statYStart + CGFloat(index) * statLineHeight
+                let labelStr = statLabels[index] as NSString
+                labelStr.draw(at: CGPoint(x: rightX, y: rowY), withAttributes: statTitleAttrs)
+                let valueStr = statValues[index] as NSString
+                valueStr.draw(
+                    with: CGRect(x: rightX, y: rowY + 28, width: rightWidth, height: 56),
+                    options: .usesLineFragmentOrigin,
+                    attributes: statValueAttrs,
+                    context: nil
+                )
+            }
 
             // Hashtag footer
             let hashAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.50)
+                .foregroundColor: UIColor.white.withAlphaComponent(0.55)
             ]
             let hashStr = "#Fortis  #WorkoutComplete  #Fitness" as NSString
             let hashSz = hashStr.size(withAttributes: hashAttrs)
             hashStr.draw(
-                at: CGPoint(x: (width - hashSz.width) / 2, y: panelRect.maxY - 42),
+                at: CGPoint(x: (width - hashSz.width) / 2, y: panelRect.maxY - 44),
                 withAttributes: hashAttrs
             )
         }
@@ -474,6 +526,18 @@ struct WorkoutSummaryView: View {
             width: scaledWidth,
             height: scaledHeight
         )
+    }
+
+    private func blurImage(_ image: UIImage, radius: CGFloat) -> UIImage? {
+        guard let inputImage = CIImage(image: image) else { return nil }
+        let filter = CIFilter.gaussianBlur()
+        filter.inputImage = inputImage
+        filter.radius = Float(radius)
+        guard let outputImage = filter.outputImage else { return nil }
+        let context = CIContext(options: nil)
+        let cropped = outputImage.cropped(to: inputImage.extent)
+        guard let cgImage = context.createCGImage(cropped, from: inputImage.extent) else { return nil }
+        return UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation)
     }
 
     private func sectionHeader(_ text: String) -> some View {
