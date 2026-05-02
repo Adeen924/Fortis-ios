@@ -43,7 +43,7 @@ struct ActiveWorkoutView: View {
                 Button("Finish", role: .none) { finishWorkout() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Save \(viewModel.totalCompletedSets) completed sets · \(formattedWeight(viewModel.totalVolume)) total.")
+                Text("Save \(viewModel.totalSets) sets · \(formattedWeight(viewModel.totalWorkoutVolume)) total.")
             }
             .alert("Cancel Workout?", isPresented: $showingCancelAlert) {
                 Button("Discard", role: .destructive) { onDismiss() }
@@ -174,6 +174,9 @@ struct ActiveWorkoutView: View {
             .padding()
             .padding(.bottom, 90)
         }
+        .onTapGesture {
+            dismissKeyboard()
+        }
     }
 
     // MARK: - Add Exercise Button
@@ -204,6 +207,10 @@ struct ActiveWorkoutView: View {
         if abs(converted) >= 1_000_000 { return String(format: "%.1fM %@", converted / 1_000_000, symbol) }
         if abs(converted) >= 1_000 { return String(format: "%.1fk %@", converted / 1_000, symbol) }
         return String(format: "%.0f %@", converted, symbol)
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 

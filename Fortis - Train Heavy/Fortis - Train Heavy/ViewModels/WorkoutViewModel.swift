@@ -220,6 +220,14 @@ final class WorkoutViewModel: Identifiable {
         workoutExercises.flatMap { $0.sets }.filter { $0.isCompleted }.reduce(0) { $0 + $1.volume }
     }
 
+    var totalWorkoutVolume: Double {
+        workoutExercises.flatMap { $0.sets }.reduce(0) { $0 + $1.volume }
+    }
+
+    var totalSets: Int {
+        workoutExercises.flatMap { $0.sets }.count
+    }
+
     var totalCompletedSets: Int {
         workoutExercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
     }
