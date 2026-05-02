@@ -101,6 +101,9 @@ struct ActiveWorkoutView: View {
         .background(Color.romanSurface)
         .clipShape(Capsule())
         .overlay(Capsule().stroke(Color.romanBorder, lineWidth: 0.5))
+        .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+            // Force UI refresh every 0.5 seconds
+        }
     }
 
     // MARK: - Rename Sheet

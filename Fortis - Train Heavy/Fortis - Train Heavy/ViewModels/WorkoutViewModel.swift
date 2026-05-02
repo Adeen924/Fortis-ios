@@ -9,30 +9,35 @@ final class WorkoutViewModel: Identifiable {
     var workoutName: String = "Morning Workout"
     var startTime: Date = Date()
     var workoutExercises: [WorkoutExerciseEntry] = []
-    var elapsedSeconds: Int = 0
+    var displayedSeconds: Int = 0  // for UI updates only
     var isFinished: Bool = false
 
-    private var timer: AnyCancellable?
+    private var displayTimer: AnyCancellable?
+
+    // MARK: - Computed elapsed time (based on actual Date difference, survives backgrounding)
+    var elapsedSeconds: Int {
+        Int(Date().timeIntervalSince(startTime))
+    }
 
     // MARK: - Init
     init() {
         startTime = Date()
-        startTimer()
+        startDisplayTimer()
     }
 
     // MARK: - Timer
-    private func startTimer() {
-        timer = Timer.publish(every: 1, on: .main, in: .common)
+    private func startDisplayTimer() {
+        displayTimer = Timer.publish(every: 0.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.elapsedSeconds += 1
+                self.displayedSeconds = self.elapsedSeconds
             }
     }
 
     func stopTimer() {
-        timer?.cancel()
-        timer = nil
+        displayTimer?.cancel()
+        displayTimer = nil
     }
 
     // MARK: - Exercise Management
