@@ -1,18 +1,20 @@
 import SwiftUI
-import SwiftData
 import Combine
 
 @Observable
 final class WorkoutViewModel: Identifiable {
     let id = UUID()
+    static let draftStorageKey = "fortis.active_workout_draft"
+
     // MARK: - State
-    var workoutName: String = "Morning Workout"
-    var startTime: Date = Date()
-    var workoutExercises: [WorkoutExerciseEntry] = []
+    var workoutName: String = "Morning Workout" { didSet { saveDraft() } }
+    var startTime: Date = Date() { didSet { saveDraft() } }
+    var workoutExercises: [WorkoutExerciseEntry] = [] { didSet { saveDraft() } }
     var displayedSeconds: Int = 0  // for UI updates only
     var isFinished: Bool = false
 
     private var displayTimer: AnyCancellable?
+    private var isRestoringDraft = false
 
     // MARK: - Computed elapsed time (based on actual Date difference, survives backgrounding)
     var elapsedSeconds: Int {
@@ -23,6 +25,16 @@ final class WorkoutViewModel: Identifiable {
     init() {
         startTime = Date()
         startDisplayTimer()
+    }
+
+    init(draft: WorkoutDraft) {
+        isRestoringDraft = true
+        workoutName = draft.workoutName
+        startTime = draft.startTime
+        workoutExercises = draft.workoutExercises
+        isRestoringDraft = false
+        startDisplayTimer()
+        saveDraft()
     }
 
     // MARK: - Timer
@@ -93,7 +105,7 @@ final class WorkoutViewModel: Identifiable {
     func addRedoSet(to exerciseEntry: WorkoutExerciseEntry, from setID: UUID) {
         guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }),
               let sourceSet = workoutExercises[idx].sets.first(where: { $0.id == setID }) else { return }
-        let nextNumber = workoutExercises[idx].sets.map { $0.setNumber }.max() ?? 0 + 1
+        let nextNumber = (workoutExercises[idx].sets.map { $0.setNumber }.max() ?? 0) + 1
         let newSet = SetEntry(
             setNumber: nextNumber,
             reps: sourceSet.reps,
@@ -243,7 +255,7 @@ final class WorkoutViewModel: Identifiable {
     }
 
     // MARK: - Finish & Save
-    func finishWorkout(context: ModelContext) -> WorkoutSession {
+    func finishWorkout() -> WorkoutSession {
         stopTimer()
         let session = WorkoutSession(
             name: workoutName.isEmpty ? defaultWorkoutName() : workoutName,
@@ -273,8 +285,6 @@ final class WorkoutViewModel: Identifiable {
             }
             session.workoutExercises.append(workoutEx)
         }
-        context.insert(session)
-        try? context.save()
         isFinished = true
         return session
     }
@@ -288,10 +298,43 @@ final class WorkoutViewModel: Identifiable {
         default:      return "Night Workout"
         }
     }
+
+    func saveDraft() {
+        guard !isRestoringDraft, !isFinished else { return }
+        guard !workoutExercises.isEmpty || workoutName != "Morning Workout" else {
+            clearDraft()
+            return
+        }
+
+        let draft = WorkoutDraft(
+            workoutName: workoutName,
+            startTime: startTime,
+            workoutExercises: workoutExercises
+        )
+
+        if let data = try? JSONEncoder.fortisDraftEncoder.encode(draft) {
+            UserDefaults.standard.set(data, forKey: Self.draftStorageKey)
+        }
+    }
+
+    func clearDraft() {
+        UserDefaults.standard.removeObject(forKey: Self.draftStorageKey)
+    }
+
+    static func restoredDraft() -> WorkoutDraft? {
+        guard let data = UserDefaults.standard.data(forKey: draftStorageKey) else { return nil }
+        return try? JSONDecoder.fortisDraftDecoder.decode(WorkoutDraft.self, from: data)
+    }
+}
+
+struct WorkoutDraft: Codable {
+    var workoutName: String
+    var startTime: Date
+    var workoutExercises: [WorkoutExerciseEntry]
 }
 
 // MARK: - Entry structs (in-memory, before saving)
-struct WorkoutExerciseEntry: Identifiable {
+struct WorkoutExerciseEntry: Identifiable, Codable {
     var id: UUID = UUID()
     var exerciseID: UUID
     var exerciseName: String
@@ -325,12 +368,12 @@ struct WorkoutExerciseEntry: Identifiable {
     var completedSets: Int { sets.filter { $0.isCompleted }.count }
 }
 
-enum ExerciseSide: String {
+enum ExerciseSide: String, Codable {
     case left = "Left"
     case right = "Right"
 }
 
-struct SetEntry: Identifiable {
+struct SetEntry: Identifiable, Codable {
     var id: UUID = UUID()
     var setNumber: Int
     var reps: Int
@@ -341,4 +384,20 @@ struct SetEntry: Identifiable {
     var completedAt: Date?
 
     var volume: Double { weight * Double(reps) }
+}
+
+private extension JSONEncoder {
+    static var fortisDraftEncoder: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }
+}
+
+private extension JSONDecoder {
+    static var fortisDraftDecoder: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
 }

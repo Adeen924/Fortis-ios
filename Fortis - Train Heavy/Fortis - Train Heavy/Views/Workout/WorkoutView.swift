@@ -1,20 +1,20 @@
 import SwiftUI
-import SwiftData
 
 struct ActiveWorkoutView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var appSettings: AppSettings
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     @Bindable var viewModel: WorkoutViewModel
-    @Query private var profiles: [UserProfile]
     let onDismiss: () -> Void
 
     @State private var showingExercisePicker = false
 
-    private var profile: UserProfile? { profiles.first }
+    private var profile: UserProfile? { dataStore.profile }
     @State private var showingFinishAlert = false
     @State private var showingCancelAlert = false
     @State private var showingRenameSheet = false
     @State private var finishedSession: WorkoutSession?
+    @State private var errorText: String?
 
     var body: some View {
         NavigationStack {
@@ -46,10 +46,21 @@ struct ActiveWorkoutView: View {
                 Text("Save \(viewModel.totalSets) sets · \(formattedWeight(viewModel.totalWorkoutVolume)) total.")
             }
             .alert("Cancel Workout?", isPresented: $showingCancelAlert) {
-                Button("Discard", role: .destructive) { onDismiss() }
+                Button("Discard", role: .destructive) {
+                    viewModel.clearDraft()
+                    onDismiss()
+                }
                 Button("Keep Going", role: .cancel) {}
             } message: {
                 Text("This workout will not be saved.")
+            }
+            .alert("Workout Not Saved", isPresented: Binding(
+                get: { errorText != nil },
+                set: { if !$0 { errorText = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorText ?? "")
             }
             .fullScreenCover(item: $finishedSession) { session in
                 WorkoutSummaryView(session: session, onDismiss: {
@@ -197,8 +208,18 @@ struct ActiveWorkoutView: View {
     }
 
     private func finishWorkout() {
-        let session = viewModel.finishWorkout(context: modelContext)
-        finishedSession = session
+        let session = viewModel.finishWorkout()
+        Task {
+            do {
+                try await dataStore.saveWorkout(session, userId: authManager.currentUserID)
+                viewModel.clearDraft()
+                finishedSession = session
+            } catch {
+                viewModel.isFinished = false
+                viewModel.saveDraft()
+                errorText = error.localizedDescription
+            }
+        }
     }
 
     private func formattedWeight(_ value: Double) -> String {

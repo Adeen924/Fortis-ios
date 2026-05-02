@@ -1,9 +1,8 @@
 import SwiftUI
-import SwiftData
 
 struct SignUpView: View {
     @Environment(AuthManager.self) private var authManager
-    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Step tracking
@@ -342,6 +341,10 @@ struct SignUpView: View {
         }
         guard password.count >= 8 else { validationError = "Password must be at least 8 characters."; return }
         guard password == confirmPass   else { validationError = "Passwords do not match."; return }
+        guard contactMethod == .email else {
+            validationError = "Phone login needs Firebase SMS verification. Use email for this account for now."
+            return
+        }
         withAnimation { step = 2 }
     }
 
@@ -375,6 +378,7 @@ struct SignUpView: View {
             firstName:    firstName.trimmingCharacters(in: .whitespaces),
             lastName:     lastName.trimmingCharacters(in: .whitespaces),
             username:     username.trimmingCharacters(in: .whitespaces).lowercased(),
+            contactIdentifier: contactMethod == .email ? email.lowercased() : phoneNumber,
             email:        contactMethod == .email ? email.lowercased() : nil,
             phoneNumber:  contactMethod == .phone ? phoneNumber : nil,
             age:          Int(age) ?? 18,
@@ -386,31 +390,20 @@ struct SignUpView: View {
             authProvider: contactMethod == .email ? "email" : "phone"
         )
 
-        // Save locally first, then register with Supabase in the background
-        modelContext.insert(profile)
-        try? modelContext.save()
-
         Task {
             do {
                 if contactMethod == .email {
-                    let userId = try await SupabaseService.shared.signUpWithEmail(
+                    let userId = try await authManager.signUpWithEmail(
                         email: email.lowercased(),
                         password: password
                     )
-                    try? await SupabaseService.shared.createProfile(
-                        userId: userId,
-                        username: profile.username,
-                        fullName: profile.fullName
-                    )
-                    authManager.completeSignIn(userID: userId.uuidString)
+                    try await dataStore.saveProfile(profile, userId: userId)
+                    authManager.completeSignIn(userID: userId)
                 } else {
-                    // Phone sign-up: fall back to local-only for now
-                    authManager.completeSignIn(userID: profile.id.uuidString)
+                    validationError = "Phone login needs Firebase SMS verification. Use email for this account for now."
                 }
             } catch {
-                // Supabase signup failed — still let the user in with local account
-                validationError = "Account created locally. Sync failed: \(error.localizedDescription)"
-                authManager.completeSignIn(userID: profile.id.uuidString)
+                validationError = error.localizedDescription
             }
             isCreating = false
         }

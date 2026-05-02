@@ -1,14 +1,11 @@
 import SwiftUI
-import SwiftData
 import PhotosUI
 
 struct ProfileView: View {
     @Environment(AuthManager.self) private var authManager
-    @Environment(\.modelContext) private var context
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     @EnvironmentObject private var appSettings: AppSettings
     @Environment(\.openURL) private var openURL
-    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
-    @Query private var profiles: [UserProfile]
     @State private var showingSignOutAlert = false
     @State private var showingDeleteAccountAlert = false
     @State private var showingPhotoPicker = false
@@ -17,7 +14,8 @@ struct ProfileView: View {
     @State private var showingURLFailureAlert = false
     @State private var urlFailureMessage = ""
 
-    private var profile: UserProfile? { profiles.first }
+    private var profile: UserProfile? { dataStore.profile }
+    private var sessions: [WorkoutSession] { dataStore.workouts }
 
     var body: some View {
         NavigationStack {
@@ -156,7 +154,9 @@ struct ProfileView: View {
                 Task {
                     if let data = try? await newValue?.loadTransferable(type: Data.self), let profile = profile {
                         profile.photoData = data
-                        try? context.save()
+                        if let userId = authManager.currentUserID {
+                            try? await dataStore.saveProfile(profile, userId: userId)
+                        }
                     }
                 }
             }
@@ -164,18 +164,12 @@ struct ProfileView: View {
     }
 
     private func deleteAccount() {
-        // Delete all user data
-        do {
-            try context.delete(model: UserProfile.self)
-            try context.delete(model: WorkoutSession.self)
-            try context.delete(model: WorkoutExercise.self)
-            try context.delete(model: ExerciseSet.self)
-            // Note: Exercises are seeded, so don't delete them
-            try context.save()
-        } catch {
-            print("Error deleting data: \(error)")
+        Task {
+            if let userId = authManager.currentUserID {
+                try? await dataStore.deleteAllUserData(userId: userId)
+            }
+            try? await authManager.deleteCurrentAuthUser()
         }
-        authManager.signOut()
     }
 
     // MARK: - Helpers

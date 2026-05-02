@@ -4,7 +4,7 @@ import Foundation
 
 /// Observes device connectivity and fires `onReconnect` when the device
 /// transitions from offline → online. Consumers use this to flush any
-/// pending Supabase sync work.
+/// pending cloud sync work.
 final class NetworkMonitor: ObservableObject {
     static let shared = NetworkMonitor()
 

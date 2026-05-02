@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 @MainActor
 final class WorkoutRecommendationEngine {
@@ -9,8 +8,7 @@ final class WorkoutRecommendationEngine {
         for muscleGroup: String,
         userProfile: UserProfile?,
         workoutHistory: [WorkoutSession],
-        availableExercises: [Exercise],
-        context: ModelContext
+        availableExercises: [Exercise]
     ) -> SuggestedWorkout? {
         
         // Filter exercises for the target muscle group

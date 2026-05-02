@@ -1,17 +1,15 @@
 import SwiftUI
-import SwiftData
 
 struct HomeView: View {
     @Environment(\.showWorkout) private var showWorkout
     @EnvironmentObject private var appSettings: AppSettings
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
-    @Query private var allExercises: [Exercise]
-    @Query private var profiles: [UserProfile]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     @State private var selectedSuggestion: SuggestedWorkout?
     @State private var showingSuggestedWorkout = false
 
-    private var profile: UserProfile? { profiles.first }
+    private var profile: UserProfile? { dataStore.profile }
+    private var sessions: [WorkoutSession] { dataStore.workouts }
+    private var allExercises: [Exercise] { dataStore.exercises }
 
     var body: some View {
         NavigationStack {
@@ -201,8 +199,7 @@ struct HomeView: View {
             for: muscleGroup,
             userProfile: profile,
             workoutHistory: sessions,
-            availableExercises: allExercises,
-            context: modelContext
+            availableExercises: allExercises
         )
         if let workout = workout {
             selectedSuggestion = workout

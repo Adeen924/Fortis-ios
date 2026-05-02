@@ -1,12 +1,12 @@
-import SwiftData
 import Foundation
 
-@Model
-final class UserProfile {
+final class UserProfile: Identifiable, Codable, Hashable {
     var id: UUID
+    var firebaseUID: String?
     var firstName: String
     var lastName: String
     var username: String
+    var contactIdentifier: String?
     var email: String?
     var phoneNumber: String?
     var age: Int
@@ -17,7 +17,7 @@ final class UserProfile {
     var goals: [String]
     var authProvider: String   // "apple", "google", "email", "phone"
     var createdAt: Date
-    @Attribute(.externalStorage) var photoData: Data?
+    var photoData: Data?
 
     var fullName: String { "\(firstName) \(lastName)" }
     var heightFormatted: String { "\(heightFeet)'\(heightInches)\"" }
@@ -30,9 +30,11 @@ final class UserProfile {
 
     init(
         id: UUID = UUID(),
+        firebaseUID: String? = nil,
         firstName: String = "",
         lastName: String = "",
         username: String = "",
+        contactIdentifier: String? = nil,
         email: String? = nil,
         phoneNumber: String? = nil,
         age: Int = 18,
@@ -45,9 +47,11 @@ final class UserProfile {
         createdAt: Date = Date()
     ) {
         self.id = id
+        self.firebaseUID = firebaseUID
         self.firstName = firstName
         self.lastName = lastName
         self.username = username
+        self.contactIdentifier = contactIdentifier
         self.email = email
         self.phoneNumber = phoneNumber
         self.age = age
@@ -58,6 +62,14 @@ final class UserProfile {
         self.goals = goals
         self.authProvider = authProvider
         self.createdAt = createdAt
+    }
+
+    static func == (lhs: UserProfile, rhs: UserProfile) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 

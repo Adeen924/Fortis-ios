@@ -1,13 +1,11 @@
 import SwiftUI
-import SwiftData
 import AuthenticationServices
 
 struct SignInView: View {
     @Environment(AuthManager.self) private var authManager
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var identifier  = ""  // email or phone
+    @State private var identifier  = ""
     @State private var password    = ""
     @State private var isLoading   = false
     @State private var errorText: String? = nil
@@ -16,6 +14,7 @@ struct SignInView: View {
     @State private var appleFirstName = ""
     @State private var appleLastName = ""
     @State private var appleEmail: String? = nil
+    @State private var currentNonce: String?
 
     var body: some View {
         NavigationStack {
@@ -40,7 +39,7 @@ struct SignInView: View {
                         }
 
                         VStack(spacing: 14) {
-                            TextField("Email or phone number", text: $identifier)
+                            TextField("Email address", text: $identifier)
                                 .keyboardType(.emailAddress)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
@@ -76,6 +75,9 @@ struct SignInView: View {
 
                         SignInWithAppleButton(.signIn) { request in
                             request.requestedScopes = [.fullName, .email]
+                            let nonce = AuthManager.randomNonceString()
+                            currentNonce = nonce
+                            request.nonce = AuthManager.sha256(nonce)
                         } onCompletion: { result in
                             handleAppleSignIn(result)
                         }
@@ -158,13 +160,19 @@ struct SignInView: View {
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         switch result {
         case .success(let auth):
-            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential else { return }
-            let userId = credential.user
-            authManager.beginSocialOnboarding(userID: userId)
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential,
+                  let nonce = currentNonce else { return }
             appleFirstName = credential.fullName?.givenName ?? ""
             appleLastName = credential.fullName?.familyName ?? ""
             appleEmail = credential.email
-            showingProfileCompletion = true
+            Task {
+                do {
+                    _ = try await authManager.signInWithApple(credential: credential, nonce: nonce)
+                    showingProfileCompletion = true
+                } catch {
+                    errorText = error.localizedDescription
+                }
+            }
         case .failure:
             errorText = "Apple Sign In failed. Please try again."
         }
@@ -174,16 +182,17 @@ struct SignInView: View {
         errorText = nil
         let email = identifier.trimmingCharacters(in: .whitespaces)
         guard !email.isEmpty else { errorText = "Enter your email."; return }
+        guard email.contains("@"), email.contains(".") else { errorText = "Enter a valid email address."; return }
         guard password.count >= 8 else { errorText = "Password must be at least 8 characters."; return }
 
         isLoading = true
         Task {
             do {
-                let userId = try await SupabaseService.shared.signInWithEmail(
+                let userId = try await authManager.signInWithEmail(
                     email: email,
                     password: password
                 )
-                authManager.completeSignIn(userID: userId.uuidString)
+                authManager.completeSignIn(userID: userId)
             } catch {
                 errorText = error.localizedDescription
             }

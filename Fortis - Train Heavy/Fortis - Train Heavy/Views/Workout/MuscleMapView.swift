@@ -1,15 +1,14 @@
 import SwiftUI
-import SwiftData
 import MuscleMap
 
 struct MuscleMapView: View {
     let primaryMuscles: [String]
     let secondaryMuscles: [String]
 
-    @Query private var profiles: [UserProfile]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
 
     private var userGender: BodyGender {
-        (profiles.first?.gender ?? "male") == "female" ? .female : .male
+        (dataStore.profile?.gender ?? "male") == "female" ? .female : .male
     }
 
     var body: some View {

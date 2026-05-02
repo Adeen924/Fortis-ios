@@ -7,6 +7,7 @@ struct WelcomeView: View {
     @State private var showingSignUp   = false
     @State private var showingSignIn   = false
     @State private var googleAlert     = false
+    @State private var currentNonce: String?
 
     var body: some View {
         @Bindable var authManager = authManager
@@ -84,6 +85,9 @@ struct WelcomeView: View {
             // Apple Sign In
             SignInWithAppleButton(.signIn) { request in
                 request.requestedScopes = [.fullName, .email]
+                let nonce = AuthManager.randomNonceString()
+                currentNonce = nonce
+                request.nonce = AuthManager.sha256(nonce)
             } onCompletion: { result in
                 handleAppleSignIn(result)
             }
@@ -152,9 +156,11 @@ struct WelcomeView: View {
     private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         switch result {
         case .success(let auth):
-            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential else { return }
-            let userID = credential.user
-            authManager.beginSocialOnboarding(userID: userID)
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential,
+                  let nonce = currentNonce else { return }
+            Task {
+                try? await authManager.signInWithApple(credential: credential, nonce: nonce)
+            }
         case .failure:
             break
         }

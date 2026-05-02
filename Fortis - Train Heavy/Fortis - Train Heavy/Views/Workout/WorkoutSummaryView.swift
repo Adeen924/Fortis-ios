@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import UIKit
 import CoreImage
 import PhotosUI
@@ -14,13 +13,14 @@ struct PersonalRecord: Identifiable {
 }
 
 struct WorkoutSummaryView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var appSettings: AppSettings
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     let session: WorkoutSession
     let onDismiss: () -> Void
 
-    @Query private var profiles: [UserProfile]
-    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var pastSessions: [WorkoutSession]
+    private var profile: UserProfile? { dataStore.profile }
+    private var pastSessions: [WorkoutSession] { dataStore.workouts }
 
     @State private var showShareSheet = false
     @State private var shareImage: UIImage? = nil
@@ -284,14 +284,22 @@ struct WorkoutSummaryView: View {
         showPhotoPicker = true
     }
 
+    private func renameWorkout() {
+        let trimmed = workoutNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        session.name = trimmed
+        Task {
+            try? await dataStore.saveWorkout(session, userId: authManager.currentUserID)
+        }
+    }
+
     // MARK: - Image Generation
 
     /// Renders the MuscleMapView to a UIImage using ImageRenderer.
-    /// Must be called on the MainActor. Uses a query-free variant to avoid
-    /// SwiftData context issues inside ImageRenderer.
+    /// Must be called on the MainActor. Uses a query-free variant for sharing.
     @MainActor
     private func renderMuscleMapImage() -> UIImage? {
-        let gender = profiles.first?.gender ?? "male"
+        let gender = profile?.gender ?? "male"
         let mapView = ShareMuscleMapView(
             primaryMuscles: combinedPrimaryMuscles,
             secondaryMuscles: combinedSecondaryMuscles,

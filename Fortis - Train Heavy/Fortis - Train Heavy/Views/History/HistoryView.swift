@@ -1,10 +1,10 @@
 import SwiftUI
-import SwiftData
 
 struct HistoryView: View {
     @EnvironmentObject private var appSettings: AppSettings
-    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     @State private var selectedSession: WorkoutSession?
+    private var sessions: [WorkoutSession] { dataStore.workouts }
 
     var body: some View {
         NavigationStack {

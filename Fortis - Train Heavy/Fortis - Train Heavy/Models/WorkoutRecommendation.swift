@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 // MARK: - Recommended Exercise
 struct RecommendedExercise: Identifiable {

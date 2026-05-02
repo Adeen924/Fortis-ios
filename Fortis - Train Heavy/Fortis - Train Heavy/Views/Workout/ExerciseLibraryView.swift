@@ -1,9 +1,8 @@
 import SwiftUI
-import SwiftData
 
 struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Exercise.name) private var allExercises: [Exercise]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     let onSelect: (Exercise) -> Void
 
     @State private var searchText = ""
@@ -11,11 +10,11 @@ struct ExercisePickerView: View {
     @State private var selectedExercise: Exercise? = nil
 
     private var categories: [String] {
-        ["All"] + Set(allExercises.map { $0.category }).sorted()
+        ["All"] + Set(dataStore.exercises.map { $0.category }).sorted()
     }
 
     private var filteredExercises: [Exercise] {
-        allExercises.filter { ex in
+        dataStore.exercises.filter { ex in
             let matchSearch = searchText.isEmpty
                 || ex.name.localizedCaseInsensitiveContains(searchText)
                 || ex.primaryMuscles.joined().localizedCaseInsensitiveContains(searchText)

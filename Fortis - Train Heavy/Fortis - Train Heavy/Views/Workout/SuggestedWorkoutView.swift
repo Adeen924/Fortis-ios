@@ -1,15 +1,13 @@
 import SwiftUI
-import SwiftData
 
 struct SuggestedWorkoutView: View {
-    @Environment(\.modelContext) private var context
     @Environment(\.showWorkout) private var showWorkout
     @EnvironmentObject private var appSettings: AppSettings
-    @Query private var profiles: [UserProfile]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     let suggestedWorkout: SuggestedWorkout
     let onDismiss: () -> Void
     
-    private var profile: UserProfile? { profiles.first }
+    private var profile: UserProfile? { dataStore.profile }
 
     var body: some View {
         NavigationStack {
