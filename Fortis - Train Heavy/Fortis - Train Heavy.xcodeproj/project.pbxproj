@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A98971262FA30B880037BD54 /* MuscleMap in Frameworks */ = {isa = PBXBuildFile; productRef = A98971252FA30B880037BD54 /* MuscleMap */; };
+		A9B0F9E72FA6F2D100138AC9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A9B0F9E62FA6F2D100138AC9 /* GoogleService-Info.plist */; };
 		FB1001010000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FB1001020000000000000001 /* FirebaseCore */; };
 		FB1001010000000000000002 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = FB1001020000000000000002 /* FirebaseAuth */; };
 		FB1001010000000000000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = FB1001020000000000000003 /* FirebaseFirestore */; };
@@ -15,6 +16,7 @@
 
 /* Begin PBXFileReference section */
 		A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fortis - Train Heavy.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A9B0F9E62FA6F2D100138AC9 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +45,7 @@
 		A98970922FA2A4A80037BD54 = {
 			isa = PBXGroup;
 			children = (
+				A9B0F9E62FA6F2D100138AC9 /* GoogleService-Info.plist */,
 				A989709D2FA2A4A80037BD54 /* Fortis - Train Heavy */,
 				A989709C2FA2A4A80037BD54 /* Products */,
 			);
@@ -128,6 +131,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A9B0F9E72FA6F2D100138AC9 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,9 +282,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Fortis - Train Heavy";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a photo as the background for your shareable workout image.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a photo as the background for your shareable workout image.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -314,9 +318,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Fortis - Train Heavy";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a photo as the background for your shareable workout image.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Choose a photo as the background for your shareable workout image.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
