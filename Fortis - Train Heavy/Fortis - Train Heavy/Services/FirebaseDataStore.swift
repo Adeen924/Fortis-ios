@@ -7,6 +7,7 @@ final class FirebaseDataStore: ObservableObject {
     @Published private(set) var profile: UserProfile?
     @Published private(set) var workouts: [WorkoutSession] = []
     @Published private(set) var exercises: [Exercise] = []
+    @Published private(set) var hasLoadedExercises = false
     @Published private(set) var isLoading = false
     @Published var lastError: String?
 
@@ -88,6 +89,7 @@ final class FirebaseDataStore: ObservableObject {
     private func loadExercises() {
         guard exerciseListener == nil else { return }
         exercises = []
+        hasLoadedExercises = false
 
         exerciseListener = FirebaseService.db
             .collection(FirebaseService.exercisesCollection)
@@ -97,11 +99,14 @@ final class FirebaseDataStore: ObservableObject {
                     guard let self else { return }
                     if let error {
                         self.lastError = error.localizedDescription
+                        self.hasLoadedExercises = true
                         return
                     }
                     self.exercises = snapshot?.documents.compactMap {
                         Exercise(firestoreData: $0.data(), documentId: $0.documentID)
                     } ?? []
+                    self.lastError = nil
+                    self.hasLoadedExercises = true
                 }
             }
     }

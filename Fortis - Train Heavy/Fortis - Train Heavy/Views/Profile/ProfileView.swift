@@ -13,6 +13,8 @@ struct ProfileView: View {
     @State private var showingUnitsDialog = false
     @State private var showingURLFailureAlert = false
     @State private var urlFailureMessage = ""
+    @State private var isDeletingAccount = false
+    @State private var accountDeletionError: String?
 
     private var profile: UserProfile? { dataStore.profile }
     private var sessions: [WorkoutSession] { dataStore.workouts }
@@ -114,9 +116,19 @@ struct ProfileView: View {
                         .listRowBackground(Color.romanSurface)
                         
                         Button(role: .destructive, action: { showingDeleteAccountAlert = true }) {
-                            Label("Delete Account", systemImage: "trash.fill")
+                            if isDeletingAccount {
+                                HStack {
+                                    ProgressView()
+                                        .tint(.romanCrimson)
+                                    Text("Deleting Account")
+                                }
                                 .foregroundStyle(.romanCrimson)
+                            } else {
+                                Label("Delete Account", systemImage: "trash.fill")
+                                    .foregroundStyle(.romanCrimson)
+                            }
                         }
+                        .disabled(isDeletingAccount)
                         .listRowBackground(Color.romanSurface)
                     }
                 }
@@ -150,6 +162,14 @@ struct ProfileView: View {
             } message: {
                 Text(urlFailureMessage)
             }
+            .alert("Unable to Delete Account", isPresented: Binding(
+                get: { accountDeletionError != nil },
+                set: { if !$0 { accountDeletionError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(accountDeletionError ?? "")
+            }
             .onChange(of: selectedPhotoItem) { oldValue, newValue in
                 Task {
                     if let data = try? await newValue?.loadTransferable(type: Data.self), let profile = profile {
@@ -165,10 +185,17 @@ struct ProfileView: View {
 
     private func deleteAccount() {
         Task {
-            if let userId = authManager.currentUserID {
-                try? await dataStore.deleteAllUserData(userId: userId)
+            isDeletingAccount = true
+            defer { isDeletingAccount = false }
+
+            do {
+                if let userId = authManager.currentUserID {
+                    try await dataStore.deleteAllUserData(userId: userId)
+                }
+                try await authManager.deleteCurrentAuthUser()
+            } catch {
+                accountDeletionError = error.localizedDescription
             }
-            try? await authManager.deleteCurrentAuthUser()
         }
     }
 

@@ -50,11 +50,18 @@ struct ExercisePickerView: View {
                     if filteredExercises.isEmpty {
                         VStack(spacing: 12) {
                             Spacer()
-                            Image(systemName: "magnifyingglass")
+                            Image(systemName: dataStore.lastError == nil ? "dumbbell" : "exclamationmark.triangle.fill")
                                 .font(.system(size: 36))
                                 .foregroundStyle(.romanGoldDim)
-                            Text("No exercises found")
+                            Text(emptyStateTitle)
                                 .foregroundStyle(.romanParchmentDim)
+                            if let message = dataStore.lastError {
+                                Text(message)
+                                    .font(.caption)
+                                    .foregroundStyle(.romanCrimson)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+                            }
                             Spacer()
                         }
                     } else {
@@ -89,6 +96,14 @@ struct ExercisePickerView: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private var emptyStateTitle: String {
+        if dataStore.lastError != nil { return "Unable to load exercises" }
+        if searchText.isEmpty && selectedCategory == nil {
+            return dataStore.hasLoadedExercises ? "No exercises in catalog" : "Loading exercise catalog"
+        }
+        return "No exercises found"
     }
 }
 
