@@ -1,6 +1,5 @@
 import AVKit
 import SwiftUI
-import SwiftData
 
 struct ExerciseDetailView: View {
     @Environment(\.dismiss) private var dismiss

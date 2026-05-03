@@ -1,8 +1,6 @@
-import SwiftData
 import Foundation
 
-@Model
-final class ExerciseSet {
+final class ExerciseSet: Identifiable, Codable, Hashable {
     var id: UUID
     var setNumber: Int
     var reps: Int
@@ -29,5 +27,13 @@ final class ExerciseSet {
         self.isWarmup = isWarmup
         self.isCompleted = isCompleted
         self.completedAt = completedAt
+    }
+
+    static func == (lhs: ExerciseSet, rhs: ExerciseSet) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

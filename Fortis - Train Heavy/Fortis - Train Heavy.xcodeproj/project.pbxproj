@@ -8,7 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		A98971262FA30B880037BD54 /* MuscleMap in Frameworks */ = {isa = PBXBuildFile; productRef = A98971252FA30B880037BD54 /* MuscleMap */; };
-		FB0001010000000000000001 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = FB0001020000000000000001 /* Supabase */; };
+		FB1001010000000000000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FB1001020000000000000001 /* FirebaseCore */; };
+		FB1001010000000000000002 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = FB1001020000000000000002 /* FirebaseAuth */; };
+		FB1001010000000000000003 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = FB1001020000000000000003 /* FirebaseFirestore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,7 +31,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				A98971262FA30B880037BD54 /* MuscleMap in Frameworks */,
-				FB0001010000000000000001 /* Supabase in Frameworks */,
+				FB1001010000000000000001 /* FirebaseCore in Frameworks */,
+				FB1001010000000000000002 /* FirebaseAuth in Frameworks */,
+				FB1001010000000000000003 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -73,7 +77,9 @@
 			name = "Fortis - Train Heavy";
 			packageProductDependencies = (
 				A98971252FA30B880037BD54 /* MuscleMap */,
-				FB0001020000000000000001 /* Supabase */,
+				FB1001020000000000000001 /* FirebaseCore */,
+				FB1001020000000000000002 /* FirebaseAuth */,
+				FB1001020000000000000003 /* FirebaseFirestore */,
 			);
 			productName = "Fortis - Train Heavy";
 			productReference = A989709B2FA2A4A80037BD54 /* Fortis - Train Heavy.app */;
@@ -105,7 +111,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */,
-				FB0001030000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				FB1001030000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A989709C2FA2A4A80037BD54 /* Products */;
@@ -363,12 +369,12 @@
 				minimumVersion = 1.6.4;
 			};
 		};
-		FB0001030000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+		FB1001030000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase/supabase-swift";
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
+				minimumVersion = 12.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -379,10 +385,20 @@
 			package = A98971242FA30B880037BD54 /* XCRemoteSwiftPackageReference "MuscleMap" */;
 			productName = MuscleMap;
 		};
-		FB0001020000000000000001 /* Supabase */ = {
+		FB1001020000000000000001 /* FirebaseCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FB0001030000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
+			package = FB1001030000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		FB1001020000000000000002 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FB1001030000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		FB1001020000000000000003 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FB1001030000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

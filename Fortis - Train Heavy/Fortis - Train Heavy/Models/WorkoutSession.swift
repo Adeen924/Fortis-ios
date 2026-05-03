@@ -1,15 +1,13 @@
-import SwiftData
 import Foundation
 
-@Model
-final class WorkoutSession {
+final class WorkoutSession: Identifiable, Codable, Hashable {
     var id: UUID
     var name: String
     var startDate: Date
     var endDate: Date?
     var duration: TimeInterval    // seconds
     var notes: String
-    @Relationship(deleteRule: .cascade) var workoutExercises: [WorkoutExercise]
+    var workoutExercises: [WorkoutExercise]
 
     var totalVolume: Double {
         workoutExercises.flatMap { $0.sets }.reduce(0) { $0 + ($1.weight * Double($1.reps)) }
@@ -36,11 +34,18 @@ final class WorkoutSession {
         self.notes = notes
         self.workoutExercises = workoutExercises
     }
+
+    static func == (lhs: WorkoutSession, rhs: WorkoutSession) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 // MARK: - WorkoutExercise (join model: session <-> exercise with sets)
-@Model
-final class WorkoutExercise {
+final class WorkoutExercise: Identifiable, Codable, Hashable {
     var id: UUID
     var exerciseID: UUID
     var exerciseName: String
@@ -48,7 +53,7 @@ final class WorkoutExercise {
     var primaryMuscles: [String]
     var secondaryMuscles: [String]? = nil
     var order: Int
-    @Relationship(deleteRule: .cascade) var sets: [ExerciseSet]
+    var sets: [ExerciseSet]
 
     var totalVolume: Double {
         sets.reduce(0) { $0 + ($1.weight * Double($1.reps)) }
@@ -76,5 +81,13 @@ final class WorkoutExercise {
         self.secondaryMuscles = secondaryMuscles
         self.order = order
         self.sets = sets
+    }
+
+    static func == (lhs: WorkoutExercise, rhs: WorkoutExercise) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

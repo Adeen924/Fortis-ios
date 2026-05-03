@@ -1,11 +1,10 @@
 import SwiftUI
-import SwiftData
 
 /// Shown after Apple/Google sign-in to collect the profile fields
 /// that social auth doesn't provide (username, age, height, weight, goals).
 struct SocialProfileCompletionView: View {
     @Environment(AuthManager.self) private var authManager
-    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var dataStore: FirebaseDataStore
 
     @State private var step = 1
     @State private var firstName    = ""
@@ -188,6 +187,7 @@ struct SocialProfileCompletionView: View {
             firstName: firstName.trimmingCharacters(in: .whitespaces),
             lastName:  lastName.trimmingCharacters(in: .whitespaces),
             username:  username.trimmingCharacters(in: .whitespaces).lowercased(),
+            contactIdentifier: email,
             email:      email,
             age:          Int(age) ?? 18,
             gender:       gender,
@@ -197,9 +197,10 @@ struct SocialProfileCompletionView: View {
             goals:        Array(selectedGoals),
             authProvider: "apple"
         )
-        modelContext.insert(profile)
-        try? modelContext.save()
-        authManager.completeSignIn(userID: userID)
+        Task {
+            try? await dataStore.saveProfile(profile, userId: userID)
+            authManager.completeSignIn(userID: userID)
+        }
     }
 
     private func stepHeader(icon: String, title: String, subtitle: String) -> some View {

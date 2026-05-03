@@ -1,8 +1,6 @@
-import SwiftData
 import Foundation
 
-@Model
-final class Exercise {
+final class Exercise: Identifiable, Codable, Hashable {
     var id: UUID
     var name: String
     var category: String          // e.g. "Chest", "Back", "Legs"
@@ -36,6 +34,14 @@ final class Exercise {
         self.mediaImageName = mediaImageName
         self.mediaVideoName = mediaVideoName
         self.isCustom = isCustom
+    }
+
+    static func == (lhs: Exercise, rhs: Exercise) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 

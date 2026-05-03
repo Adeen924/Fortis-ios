@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
 
 struct WorkoutTabView: View {
     @Binding var activeWorkout: WorkoutViewModel?
-    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
+    private var sessions: [WorkoutSession] { dataStore.workouts }
 
     var body: some View {
         NavigationStack {

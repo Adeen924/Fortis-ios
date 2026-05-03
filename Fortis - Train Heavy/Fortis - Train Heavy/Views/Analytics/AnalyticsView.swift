@@ -1,10 +1,10 @@
 import SwiftUI
-import SwiftData
 
 struct AnalyticsView: View {
     @EnvironmentObject private var appSettings: AppSettings
-    @Query(sort: \WorkoutSession.startDate, order: .reverse) private var sessions: [WorkoutSession]
-    @Query private var profiles: [UserProfile]
+    @EnvironmentObject private var dataStore: FirebaseDataStore
+    private var sessions: [WorkoutSession] { dataStore.workouts }
+    private var profile: UserProfile? { dataStore.profile }
 
     var body: some View {
         NavigationStack {
@@ -129,7 +129,7 @@ struct AnalyticsView: View {
     }
 
     private func generateRecommendations() -> [String] {
-        guard let profile = profiles.first else { return [] }
+        guard let profile else { return [] }
         let stats = muscleGroupStats()
         var recommendations: [String] = []
 
