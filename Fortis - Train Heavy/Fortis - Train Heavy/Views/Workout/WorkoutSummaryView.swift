@@ -346,7 +346,7 @@ struct WorkoutSummaryView: View {
         let W: CGFloat = 1080
         let H: CGFloat = 1920
         let canvasSize = CGSize(width: W, height: H)
-        let panelTopFraction: CGFloat = 0.58
+        let panelTopFraction: CGFloat = 0.64
         let panelTopY = H * panelTopFraction
 
         let renderer = UIGraphicsImageRenderer(size: canvasSize)
@@ -373,7 +373,7 @@ struct WorkoutSummaryView: View {
             }
 
             // ── Dark overlay only on panel for readability ────────────────────
-            UIColor(white: 0, alpha: 0.58).setFill()
+            UIColor(white: 0, alpha: 0.20).setFill()
             UIRectFill(CGRect(x: 0, y: panelTopY, width: W, height: H - panelTopY))
 
             // ── Gold border at panel top ──────────────────────────────────────
@@ -400,7 +400,7 @@ struct WorkoutSummaryView: View {
 
             // ── Panel content ─────────────────────────────────────────────────
             let margin: CGFloat = 36
-            var panelY = panelTopY + 30
+            var panelY = panelTopY + 26
 
             // Workout name
             let titleAttrs: [NSAttributedString.Key: Any] = [
@@ -428,15 +428,18 @@ struct WorkoutSummaryView: View {
             panelY += 22
 
             // ── Side-by-side: muscle map (left) + stats (right) ───────────────
-            let contentHeight: CGFloat = 360
-            let mapColWidth = W * 0.40 - margin
-            let statsX = margin + mapColWidth + 20
+            let mapMaxSize = CGSize(width: 545, height: 370)
+            let statBlockHeight: CGFloat = 318
+            let columnGap: CGFloat = 54
+            let statsX = margin + mapMaxSize.width + columnGap
             let statsWidth = W - statsX - margin
+            let statsY = panelY + 34
 
             if let mapImg = muscleMap {
                 cgCtx.saveGState()
-                let mapRect = CGRect(x: margin, y: panelY, width: mapColWidth, height: contentHeight)
-                UIBezierPath(roundedRect: mapRect, cornerRadius: 14).addClip()
+                let mapBounds = CGRect(origin: CGPoint(x: margin, y: panelY), size: mapMaxSize)
+                UIBezierPath(roundedRect: mapBounds, cornerRadius: 14).addClip()
+                let mapRect = aspectFitRect(imageSize: mapImg.size, targetRect: mapBounds)
                 mapImg.draw(in: mapRect)
                 cgCtx.restoreGState()
             }
@@ -453,16 +456,16 @@ struct WorkoutSummaryView: View {
             let statLabels = ["DURATION", "VOLUME", "EXERCISES", "SETS"]
             let statValues = [durationFormatted, volumeFormatted,
                               "\(session.workoutExercises.count)", "\(session.totalSets)"]
-            let rowH = contentHeight / 4
+            let rowH = statBlockHeight / 4
             for i in 0..<4 {
-                let rowY = panelY + CGFloat(i) * rowH
+                let rowY = statsY + CGFloat(i) * rowH
                 (statLabels[i] as NSString).draw(at: CGPoint(x: statsX, y: rowY + 4), withAttributes: statLabelAttrs)
                 (statValues[i] as NSString).draw(
                     with: CGRect(x: statsX, y: rowY + 24, width: statsWidth, height: 58),
                     options: .usesLineFragmentOrigin, attributes: statValueAttrs, context: nil
                 )
             }
-            panelY += contentHeight + 18
+            panelY = max(panelY + mapMaxSize.height, statsY + statBlockHeight) + 18
 
             // Gold separator 2
             gold.setStroke()
@@ -528,6 +531,18 @@ struct WorkoutSummaryView: View {
             y: (targetSize.height - scaledHeight) / 2,
             width: scaledWidth,
             height: scaledHeight
+        )
+    }
+
+    private func aspectFitRect(imageSize: CGSize, targetRect: CGRect) -> CGRect {
+        guard imageSize.width > 0, imageSize.height > 0 else { return targetRect }
+        let scale = min(targetRect.width / imageSize.width, targetRect.height / imageSize.height)
+        let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        return CGRect(
+            x: targetRect.midX - scaledSize.width / 2,
+            y: targetRect.midY - scaledSize.height / 2,
+            width: scaledSize.width,
+            height: scaledSize.height
         )
     }
 
