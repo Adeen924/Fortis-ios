@@ -9,19 +9,70 @@ struct ExercisePickerView: View {
     @State private var selectedCategory: String? = nil
     @State private var selectedExercise: Exercise? = nil
 
+    private let favoritesCategory = "Fav"
+
     private var categories: [String] {
-        ["All"] + Set(dataStore.exercises.map { $0.category }).sorted()
+        ["All", favoritesCategory] + Set(dataStore.exercises.map { $0.category }).sorted()
     }
 
     private var filteredExercises: [Exercise] {
-        dataStore.exercises.filter { ex in
+        let baseExercises = selectedCategory == favoritesCategory
+            ? favoriteExercises
+            : dataStore.exercises
+
+        return baseExercises.filter { ex in
             let matchSearch = searchText.isEmpty
                 || ex.name.localizedCaseInsensitiveContains(searchText)
                 || ex.primaryMuscles.joined().localizedCaseInsensitiveContains(searchText)
-            let matchCat = selectedCategory == nil || selectedCategory == "All"
+            let matchCat = selectedCategory == nil || selectedCategory == "All" || selectedCategory == favoritesCategory
                 || ex.category == selectedCategory
             return matchSearch && matchCat
         }
+    }
+
+    private var favoriteExercises: [Exercise] {
+        let usage = exerciseUsage()
+        return dataStore.exercises
+            .filter { exercise in
+                usage[exercise.id.uuidString] != nil || usage[exercise.name.normalizedExerciseKey] != nil
+            }
+            .sorted { lhs, rhs in
+                let lhsUsage = usage[lhs.id.uuidString] ?? usage[lhs.name.normalizedExerciseKey]
+                let rhsUsage = usage[rhs.id.uuidString] ?? usage[rhs.name.normalizedExerciseKey]
+
+                if lhsUsage?.lastUsed != rhsUsage?.lastUsed {
+                    return (lhsUsage?.lastUsed ?? .distantPast) > (rhsUsage?.lastUsed ?? .distantPast)
+                }
+
+                if lhsUsage?.count != rhsUsage?.count {
+                    return (lhsUsage?.count ?? 0) > (rhsUsage?.count ?? 0)
+                }
+
+                return lhs.name < rhs.name
+            }
+    }
+
+    private func exerciseUsage() -> [String: ExerciseUsage] {
+        var usage: [String: ExerciseUsage] = [:]
+
+        for session in dataStore.workouts {
+            let usedAt = session.endDate ?? session.startDate
+            for workoutExercise in session.workoutExercises where workoutExercise.sets.contains(where: { $0.isCompleted }) {
+                let keys = [
+                    workoutExercise.exerciseID.uuidString,
+                    workoutExercise.exerciseName.normalizedExerciseKey
+                ]
+
+                for key in keys {
+                    var current = usage[key] ?? ExerciseUsage(count: 0, lastUsed: .distantPast)
+                    current.count += 1
+                    current.lastUsed = max(current.lastUsed, usedAt)
+                    usage[key] = current
+                }
+            }
+        }
+
+        return usage
     }
 
     var body: some View {
@@ -100,10 +151,22 @@ struct ExercisePickerView: View {
 
     private var emptyStateTitle: String {
         if dataStore.lastError != nil { return "Unable to load exercises" }
+        if selectedCategory == favoritesCategory { return "No completed exercises yet" }
         if searchText.isEmpty && selectedCategory == nil {
             return dataStore.hasLoadedExercises ? "No exercises in catalog" : "Loading exercise catalog"
         }
         return "No exercises found"
+    }
+}
+
+private struct ExerciseUsage {
+    var count: Int
+    var lastUsed: Date
+}
+
+private extension String {
+    var normalizedExerciseKey: String {
+        trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }
 
