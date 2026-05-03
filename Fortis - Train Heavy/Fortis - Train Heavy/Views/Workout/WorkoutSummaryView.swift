@@ -48,7 +48,7 @@ struct WorkoutSummaryView: View {
     init(session: WorkoutSession, onDismiss: @escaping () -> Void) {
         self.session = session
         self.onDismiss = onDismiss
-        _displayedName = State(initialValue: session.name)
+        _displayedName = State(initialValue: WorkoutSession.normalizedName(session.name))
     }
 
     private var combinedPrimaryMuscles: [String] {
@@ -166,19 +166,24 @@ struct WorkoutSummaryView: View {
     // MARK: - Hero
     private var summaryHero: some View {
         VStack(spacing: 14) {
-            Text(displayedName)
-                .font(.title2.bold())
+            Button(action: beginRenameWorkout) {
+                HStack(spacing: 8) {
+                    Text(displayedName)
+                        .font(.title2.bold())
+                        .multilineTextAlignment(.center)
+                    Image(systemName: "pencil")
+                        .font(.subheadline.bold())
+                        .accessibilityHidden(true)
+                }
                 .foregroundStyle(.romanParchment)
-                .onTapGesture {
-                    workoutNameDraft = displayedName
-                    showRenameAlert = true
-                }
-                .contextMenu {
-                    Button("Rename") {
-                        workoutNameDraft = displayedName
-                        showRenameAlert = true
-                    }
-                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Rename workout")
+            .accessibilityValue(displayedName)
+            .contextMenu {
+                Button("Rename", action: beginRenameWorkout)
+            }
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -304,13 +309,17 @@ struct WorkoutSummaryView: View {
     }
 
     private func renameWorkout() {
-        let trimmed = workoutNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        session.name = trimmed
-        displayedName = trimmed
+        let newName = WorkoutSession.normalizedName(workoutNameDraft)
+        session.name = newName
+        displayedName = newName
         Task {
             try? await dataStore.saveWorkout(session, userId: authManager.currentUserID)
         }
+    }
+
+    private func beginRenameWorkout() {
+        workoutNameDraft = displayedName
+        showRenameAlert = true
     }
 
     // MARK: - Image Generation

@@ -1,6 +1,8 @@
 import Foundation
 
 final class WorkoutSession: Identifiable, Codable, Hashable {
+    static let defaultName = "Unnamed workout"
+
     var id: UUID
     var name: String
     var startDate: Date
@@ -21,7 +23,7 @@ final class WorkoutSession: Identifiable, Codable, Hashable {
 
     init(
         id: UUID = UUID(),
-        name: String = "",
+        name: String = WorkoutSession.defaultName,
         startDate: Date = Date(),
         endDate: Date? = nil,
         duration: TimeInterval = 0,
@@ -29,7 +31,7 @@ final class WorkoutSession: Identifiable, Codable, Hashable {
         workoutExercises: [WorkoutExercise] = []
     ) {
         self.id = id
-        self.name = name
+        self.name = WorkoutSession.normalizedName(name)
         self.startDate = startDate
         self.endDate = endDate
         self.duration = duration
@@ -43,6 +45,11 @@ final class WorkoutSession: Identifiable, Codable, Hashable {
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+    }
+
+    static func normalizedName(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? defaultName : trimmed
     }
 }
 

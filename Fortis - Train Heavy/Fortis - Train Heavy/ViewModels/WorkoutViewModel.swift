@@ -7,7 +7,7 @@ final class WorkoutViewModel: Identifiable {
     static let draftStorageKey = "fortis.active_workout_draft"
 
     // MARK: - State
-    var workoutName: String = "Morning Workout" { didSet { saveDraft() } }
+    var workoutName: String = WorkoutSession.defaultName { didSet { saveDraft() } }
     var startTime: Date = Date() { didSet { saveDraft() } }
     var workoutExercises: [WorkoutExerciseEntry] = [] { didSet { saveDraft() } }
     var displayedSeconds: Int = 0  // for UI updates only
@@ -29,7 +29,7 @@ final class WorkoutViewModel: Identifiable {
 
     init(draft: WorkoutDraft) {
         isRestoringDraft = true
-        workoutName = draft.workoutName
+        workoutName = WorkoutSession.normalizedName(draft.workoutName)
         startTime = draft.startTime
         workoutExercises = draft.workoutExercises
         isRestoringDraft = false
@@ -265,7 +265,7 @@ final class WorkoutViewModel: Identifiable {
     func finishWorkout() -> WorkoutSession {
         stopTimer()
         let session = WorkoutSession(
-            name: workoutName.isEmpty ? defaultWorkoutName() : workoutName,
+            name: WorkoutSession.normalizedName(workoutName),
             startDate: startTime,
             endDate: Date(),
             duration: TimeInterval(elapsedSeconds)
@@ -296,19 +296,9 @@ final class WorkoutViewModel: Identifiable {
         return session
     }
 
-    private func defaultWorkoutName() -> String {
-        let hour = Calendar.current.component(.hour, from: startTime)
-        switch hour {
-        case 5..<12:  return "Morning Workout"
-        case 12..<17: return "Afternoon Workout"
-        case 17..<21: return "Evening Workout"
-        default:      return "Night Workout"
-        }
-    }
-
     func saveDraft() {
         guard !isRestoringDraft, !isFinished else { return }
-        guard !workoutExercises.isEmpty || workoutName != "Morning Workout" else {
+        guard !workoutExercises.isEmpty || workoutName != WorkoutSession.defaultName else {
             clearDraft()
             return
         }
