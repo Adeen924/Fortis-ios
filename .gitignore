@@ -1,10 +1,24 @@
-# ── Credentials — never commit ───────────────────────────────────────────────
+# ── Firebase / Google credentials — never commit ──────────────────────────────
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+
+# ── Other secrets — never commit ──────────────────────────────────────────────
 Config.plist
 **/Config.plist
+.env
+.env.local
+*.pem
+*.p8
+*.p12
+AuthKey_*.p8
+Secrets.swift
+**/Secrets.swift
 
 # ── Xcode ─────────────────────────────────────────────────────────────────────
 *.xcuserstate
 xcuserdata/
+**/*.xcuserstate
+**/xcuserdata/
 DerivedData/
 *.moved-aside
 *.pbxuser
@@ -22,6 +36,7 @@ DerivedData/
 
 # ── macOS ──────────────────────────────────────────────────────────────────────
 .DS_Store
+**/.DS_Store
 .AppleDouble
 .LSOverride
 Thumbs.db
@@ -30,11 +45,3 @@ Thumbs.db
 Pods/
 *.xcworkspace
 !*.xcodeproj/*.xcworkspace
-
-# ── Env / secrets ─────────────────────────────────────────────────────────────
-.env
-.env.local
-*.pem
-*.p8
-*.p12
-GoogleService-Info.plist
