@@ -17,6 +17,16 @@ private struct TransferableImage: Transferable {
     }
 }
 
+private extension NSShadow {
+    static var shareTextShadow: NSShadow {
+        let shadow = NSShadow()
+        shadow.shadowColor = UIColor.black.withAlphaComponent(0.5)
+        shadow.shadowBlurRadius = 10
+        shadow.shadowOffset = CGSize(width: 0, height: 2)
+        return shadow
+    }
+}
+
 struct PersonalRecord: Identifiable {
     let id = UUID()
     let exerciseName: String
@@ -41,7 +51,7 @@ struct WorkoutSummaryView: View {
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var backgroundImage: UIImage? = nil
     @State private var isGeneratingImage = false
-    @State private var showRenameAlert = false
+    @State private var showRenameSheet = false
     @State private var workoutNameDraft = ""
     @State private var displayedName: String
 
@@ -124,15 +134,11 @@ struct WorkoutSummaryView: View {
                         .foregroundStyle(.romanGold)
                 }
             }
-            .alert("Rename Workout", isPresented: $showRenameAlert) {
-                TextField("Workout name", text: $workoutNameDraft)
-                Button("Save") { renameWorkout() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Enter a name for this workout.")
-            }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showRenameSheet) {
+            renameSheet
+        }
         .photosPicker(
             isPresented: $showPhotoPicker,
             selection: $selectedPhotoItem,
@@ -161,6 +167,47 @@ struct WorkoutSummaryView: View {
                 ActivityView(activityItems: [image])
             }
         }
+    }
+
+    private var renameSheet: some View {
+        NavigationStack {
+            ZStack {
+                Color.romanBackground.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    Text("RENAME WORKOUT")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(3)
+                        .foregroundStyle(.romanParchmentDim)
+
+                    TextField("Workout name", text: $workoutNameDraft)
+                        .font(.title3.bold())
+                        .foregroundStyle(.romanParchment)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .romanCard()
+                        .padding(.horizontal)
+                        .textInputAutocapitalization(.words)
+                }
+                .padding(.top, 40)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { showRenameSheet = false }
+                        .foregroundStyle(.romanParchmentDim)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        renameWorkout()
+                        showRenameSheet = false
+                    }
+                    .foregroundStyle(.romanGold)
+                    .bold()
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Hero
@@ -319,7 +366,7 @@ struct WorkoutSummaryView: View {
 
     private func beginRenameWorkout() {
         workoutNameDraft = displayedName
-        showRenameAlert = true
+        showRenameSheet = true
     }
 
     // MARK: - Image Generation
@@ -346,7 +393,7 @@ struct WorkoutSummaryView: View {
         let W: CGFloat = 1080
         let H: CGFloat = 1920
         let canvasSize = CGSize(width: W, height: H)
-        let panelTopFraction: CGFloat = 0.64
+        let panelTopFraction: CGFloat = 0.68
         let panelTopY = H * panelTopFraction
 
         let renderer = UIGraphicsImageRenderer(size: canvasSize)
@@ -373,9 +420,6 @@ struct WorkoutSummaryView: View {
             }
 
             // ── Dark overlay only on panel for readability ────────────────────
-            UIColor(white: 0, alpha: 0.20).setFill()
-            UIRectFill(CGRect(x: 0, y: panelTopY, width: W, height: H - panelTopY))
-
             // ── Gold border at panel top ──────────────────────────────────────
             UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85).setStroke()
             let border = UIBezierPath()
@@ -385,12 +429,12 @@ struct WorkoutSummaryView: View {
             border.stroke()
 
             // ── Fortis branding — small, top of photo ─────────────────────────
-            let shieldSize: CGFloat = 52
+            let shieldSize: CGFloat = 66
             let shieldX = (W - shieldSize) / 2
-            let shieldY: CGFloat = 60
+            let shieldY: CGFloat = 52
             drawShield(in: cgCtx, rect: CGRect(x: shieldX, y: shieldY, width: shieldSize, height: shieldSize))
             let fortisAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 17, weight: .black),
+                .font: UIFont.systemFont(ofSize: 19, weight: .black),
                 .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85),
                 .kern: 8
             ]
@@ -405,7 +449,8 @@ struct WorkoutSummaryView: View {
             // Workout name
             let titleAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 34, weight: .heavy),
-                .foregroundColor: UIColor.white
+                .foregroundColor: UIColor.white,
+                .shadow: NSShadow.shareTextShadow
             ]
             let titleH = (session.name as NSString).boundingRect(
                 with: CGSize(width: W - margin * 2, height: .infinity),
@@ -447,11 +492,13 @@ struct WorkoutSummaryView: View {
             let statLabelAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 15, weight: .bold),
                 .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 1),
-                .kern: 2
+                .kern: 2,
+                .shadow: NSShadow.shareTextShadow
             ]
             let statValueAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 44, weight: .heavy),
-                .foregroundColor: UIColor.white
+                .foregroundColor: UIColor.white,
+                .shadow: NSShadow.shareTextShadow
             ]
             let statLabels = ["DURATION", "VOLUME", "EXERCISES", "SETS"]
             let statValues = [durationFormatted, volumeFormatted,
@@ -479,7 +526,8 @@ struct WorkoutSummaryView: View {
             // Hashtags
             let hashAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.45)
+                .foregroundColor: UIColor.white.withAlphaComponent(0.55),
+                .shadow: NSShadow.shareTextShadow
             ]
             let hashStr = "#Fortis  #WorkoutComplete  #Fitness" as NSString
             let hashSz = hashStr.size(withAttributes: hashAttrs)

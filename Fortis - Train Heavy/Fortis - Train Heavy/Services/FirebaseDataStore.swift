@@ -87,7 +87,7 @@ final class FirebaseDataStore: ObservableObject {
 
     private func loadExercises() {
         guard exerciseListener == nil else { return }
-        exercises = ExerciseService.loadFromBundle().sorted { $0.name < $1.name }
+        exercises = []
 
         exerciseListener = FirebaseService.db
             .collection(FirebaseService.exercisesCollection)
@@ -99,8 +99,9 @@ final class FirebaseDataStore: ObservableObject {
                         self.lastError = error.localizedDescription
                         return
                     }
-                    guard let docs = snapshot?.documents, !docs.isEmpty else { return }
-                    self.exercises = docs.compactMap { Exercise(firestoreData: $0.data(), documentId: $0.documentID) }
+                    self.exercises = snapshot?.documents.compactMap {
+                        Exercise(firestoreData: $0.data(), documentId: $0.documentID)
+                    } ?? []
                 }
             }
     }
