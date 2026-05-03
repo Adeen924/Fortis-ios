@@ -14,7 +14,9 @@ final class WorkoutSession: Identifiable, Codable, Hashable {
     }
 
     var totalSets: Int {
-        workoutExercises.flatMap { $0.sets }.count
+        workoutExercises.reduce(0) { total, ex in
+            total + Set(ex.sets.map { $0.setNumber }).count
+        }
     }
 
     init(

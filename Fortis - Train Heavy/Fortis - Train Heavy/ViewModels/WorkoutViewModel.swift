@@ -106,11 +106,14 @@ final class WorkoutViewModel: Identifiable {
         guard let idx = workoutExercises.firstIndex(where: { $0.id == exerciseEntry.id }),
               let sourceSet = workoutExercises[idx].sets.first(where: { $0.id == setID }) else { return }
         let nextNumber = (workoutExercises[idx].sets.map { $0.setNumber }.max() ?? 0) + 1
+        let autoComplete = sourceSet.reps > 0 && sourceSet.weight > 0
         let newSet = SetEntry(
             setNumber: nextNumber,
             reps: sourceSet.reps,
             weight: sourceSet.weight,
-            side: sourceSet.side
+            side: sourceSet.side,
+            isCompleted: autoComplete,
+            completedAt: autoComplete ? Date() : nil
         )
         workoutExercises[idx].sets.append(newSet)
     }
@@ -237,11 +240,15 @@ final class WorkoutViewModel: Identifiable {
     }
 
     var totalSets: Int {
-        workoutExercises.flatMap { $0.sets }.count
+        workoutExercises.reduce(0) { total, ex in
+            total + Set(ex.sets.map { $0.setNumber }).count
+        }
     }
 
     var totalCompletedSets: Int {
-        workoutExercises.flatMap { $0.sets }.filter { $0.isCompleted }.count
+        workoutExercises.reduce(0) { total, ex in
+            total + Set(ex.sets.filter { $0.isCompleted }.map { $0.setNumber }).count
+        }
     }
 
     var formattedDuration: String {

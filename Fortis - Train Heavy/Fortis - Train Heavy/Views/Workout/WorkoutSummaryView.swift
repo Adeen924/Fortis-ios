@@ -43,6 +43,13 @@ struct WorkoutSummaryView: View {
     @State private var isGeneratingImage = false
     @State private var showRenameAlert = false
     @State private var workoutNameDraft = ""
+    @State private var displayedName: String
+
+    init(session: WorkoutSession, onDismiss: @escaping () -> Void) {
+        self.session = session
+        self.onDismiss = onDismiss
+        _displayedName = State(initialValue: session.name)
+    }
 
     private var combinedPrimaryMuscles: [String] {
         var muscles = Set<String>()
@@ -159,16 +166,16 @@ struct WorkoutSummaryView: View {
     // MARK: - Hero
     private var summaryHero: some View {
         VStack(spacing: 14) {
-            Text(session.name)
+            Text(displayedName)
                 .font(.title2.bold())
                 .foregroundStyle(.romanParchment)
                 .onTapGesture {
-                    workoutNameDraft = session.name
+                    workoutNameDraft = displayedName
                     showRenameAlert = true
                 }
                 .contextMenu {
                     Button("Rename") {
-                        workoutNameDraft = session.name
+                        workoutNameDraft = displayedName
                         showRenameAlert = true
                     }
                 }
@@ -300,6 +307,7 @@ struct WorkoutSummaryView: View {
         let trimmed = workoutNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         session.name = trimmed
+        displayedName = trimmed
         Task {
             try? await dataStore.saveWorkout(session, userId: authManager.currentUserID)
         }
@@ -317,7 +325,7 @@ struct WorkoutSummaryView: View {
             secondaryMuscles: combinedSecondaryMuscles,
             gender: gender
         )
-        .frame(width: 960, height: 280)  // wide/short: front+back side by side
+        .frame(width: 680, height: 460)
         .background(Color.clear)
 
         let renderer = ImageRenderer(content: mapView)
@@ -325,31 +333,18 @@ struct WorkoutSummaryView: View {
         return renderer.uiImage
     }
 
-    /// Builds the 1080×1920 share card:
-    ///   • User's photo fills the full frame (aspect-fill)
-    ///   • Dark gradient sweeps from transparent → 85% black across the bottom 55%
-    ///   • Fortis shield sits small and centred near the top of the photo
-    ///   • A frosted panel (semi-transparent dark + gold border) covers the bottom ~38%
-    ///     and contains: workout name / muscle map / 2×2 stats / hashtags
     private func generateShareImage(background: UIImage?, muscleMap: UIImage?) -> UIImage {
         let W: CGFloat = 1080
         let H: CGFloat = 1920
         let canvasSize = CGSize(width: W, height: H)
-
-        let panelTopFraction: CGFloat = 0.62
-        var blurredPanelBg: UIImage? = nil
-        if let bg = background {
-            blurredPanelBg = blurRegion(of: bg,
-                                        panelTopFraction: panelTopFraction,
-                                        canvasSize: canvasSize)
-        }
-        _ = blurredPanelBg
+        let panelTopFraction: CGFloat = 0.58
+        let panelTopY = H * panelTopFraction
 
         let renderer = UIGraphicsImageRenderer(size: canvasSize)
         return renderer.image { ctx in
             let cgCtx = ctx.cgContext
 
-            // ── Full-canvas photo (aspect-fill) ──────────────────────────────
+            // ── Background: crisp photo fills full canvas, no dark overlay ────
             UIColor(red: 0.11, green: 0.07, blue: 0, alpha: 1).setFill()
             UIRectFill(CGRect(x: 0, y: 0, width: W, height: H))
 
@@ -358,172 +353,129 @@ struct WorkoutSummaryView: View {
                 let imgRect = aspectFillRect(imageSize: bg.size, targetSize: canvasSize)
                 bg.draw(in: imgRect)
                 drawnBgRect = imgRect
-                UIColor.black.withAlphaComponent(0.30).setFill()
-                UIRectFill(CGRect(origin: .zero, size: canvasSize))
             }
 
-            let blurredBackground = background.flatMap { blurImage($0, radius: 30) }
-
-            // ── Top branding ─────────────────────────────────────────────────
-            let shieldSize: CGFloat = 80
-            let shieldX = (W - shieldSize) / 2
-            let shieldY: CGFloat = 72
-            let logoRect = CGRect(x: shieldX - 24, y: shieldY - 18, width: shieldSize + 48, height: shieldSize + 72)
-            if let blurred = blurredBackground {
+            // ── Blur only the panel region ────────────────────────────────────
+            if let blurred = background.flatMap({ blurImage($0, radius: 28) }) {
                 cgCtx.saveGState()
-                let logoPath = UIBezierPath(roundedRect: logoRect, cornerRadius: 28)
-                logoPath.addClip()
+                UIRectClip(CGRect(x: 0, y: panelTopY, width: W, height: H - panelTopY))
                 blurred.draw(in: drawnBgRect)
                 cgCtx.restoreGState()
-                UIColor(white: 0.04, alpha: 0.35).setFill()
-                logoPath.fill()
             }
-            drawShield(in: cgCtx, rect: CGRect(x: shieldX, y: shieldY, width: shieldSize, height: shieldSize))
 
+            // ── Dark overlay only on panel for readability ────────────────────
+            UIColor(white: 0, alpha: 0.58).setFill()
+            UIRectFill(CGRect(x: 0, y: panelTopY, width: W, height: H - panelTopY))
+
+            // ── Gold border at panel top ──────────────────────────────────────
+            UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85).setStroke()
+            let border = UIBezierPath()
+            border.move(to: CGPoint(x: 0, y: panelTopY))
+            border.addLine(to: CGPoint(x: W, y: panelTopY))
+            border.lineWidth = 2.5
+            border.stroke()
+
+            // ── Fortis branding — small, top of photo ─────────────────────────
+            let shieldSize: CGFloat = 52
+            let shieldX = (W - shieldSize) / 2
+            let shieldY: CGFloat = 60
+            drawShield(in: cgCtx, rect: CGRect(x: shieldX, y: shieldY, width: shieldSize, height: shieldSize))
             let fortisAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 22, weight: .black),
-                .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 1),
-                .kern: 10
+                .font: UIFont.systemFont(ofSize: 17, weight: .black),
+                .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85),
+                .kern: 8
             ]
             let fortisStr = "FORTIS" as NSString
             let fortisW = fortisStr.size(withAttributes: fortisAttrs).width
-            fortisStr.draw(at: CGPoint(x: (W - fortisW) / 2, y: shieldY + shieldSize + 10), withAttributes: fortisAttrs)
+            fortisStr.draw(at: CGPoint(x: (W - fortisW) / 2, y: shieldY + shieldSize + 6), withAttributes: fortisAttrs)
 
-            // ── Stats overlay panel ──────────────────────────────────────────
-            let panelMargin: CGFloat = 48
-            let panelTop: CGFloat = shieldY + shieldSize + 86
-            let panelH: CGFloat = 540
-            let panelRect = CGRect(x: panelMargin, y: panelTop, width: W - panelMargin * 2, height: panelH)
-            let panelPath = UIBezierPath(roundedRect: panelRect, cornerRadius: 28)
+            // ── Panel content ─────────────────────────────────────────────────
+            let margin: CGFloat = 36
+            var panelY = panelTopY + 30
 
-            if let blurred = blurredBackground {
-                cgCtx.saveGState()
-                panelPath.addClip()
-                blurred.draw(in: drawnBgRect)
-                cgCtx.restoreGState()
-            } else {
-                UIColor.black.withAlphaComponent(0.72).setFill()
-                panelPath.fill()
-            }
-
-            UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.65).setStroke()
-            panelPath.lineWidth = 2
-            panelPath.stroke()
-
-            // ── Panel content (flows top-to-bottom) ──────────────────────────
-            let cX = panelRect.minX + 26
-            let cW = panelRect.width - 52
-            var cY = panelRect.minY + 22
-
+            // Workout name
             let titleAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 34, weight: .heavy),
                 .foregroundColor: UIColor.white
             ]
             let titleH = (session.name as NSString).boundingRect(
-                with: CGSize(width: cW, height: .infinity),
+                with: CGSize(width: W - margin * 2, height: .infinity),
                 options: .usesLineFragmentOrigin, attributes: titleAttrs, context: nil
             ).height
             (session.name as NSString).draw(
-                with: CGRect(x: cX, y: cY, width: cW, height: titleH),
+                with: CGRect(x: margin, y: panelY, width: W - margin * 2, height: titleH),
                 options: .usesLineFragmentOrigin, attributes: titleAttrs, context: nil
             )
-            cY += titleH + 14
+            panelY += titleH + 16
 
-            let gold = UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.5)
+            // Gold separator
+            let gold = UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.55)
             gold.setStroke()
-            let sepPath = UIBezierPath()
-            sepPath.move(to: CGPoint(x: cX, y: cY))
-            sepPath.addLine(to: CGPoint(x: cX + cW, y: cY))
-            sepPath.lineWidth = 1.5
-            sepPath.stroke()
-            cY += 14
+            let sep = UIBezierPath()
+            sep.move(to: CGPoint(x: margin, y: panelY))
+            sep.addLine(to: CGPoint(x: W - margin, y: panelY))
+            sep.lineWidth = 1.5
+            sep.stroke()
+            panelY += 22
 
-            let mapH = cW * (280.0 / 960.0)
+            // ── Side-by-side: muscle map (left) + stats (right) ───────────────
+            let contentHeight: CGFloat = 360
+            let mapColWidth = W * 0.40 - margin
+            let statsX = margin + mapColWidth + 20
+            let statsWidth = W - statsX - margin
+
             if let mapImg = muscleMap {
                 cgCtx.saveGState()
-                UIBezierPath(roundedRect: CGRect(x: cX, y: cY, width: cW, height: mapH), cornerRadius: 12).addClip()
-                mapImg.draw(in: CGRect(x: cX, y: cY, width: cW, height: mapH))
+                let mapRect = CGRect(x: margin, y: panelY, width: mapColWidth, height: contentHeight)
+                UIBezierPath(roundedRect: mapRect, cornerRadius: 14).addClip()
+                mapImg.draw(in: mapRect)
                 cgCtx.restoreGState()
             }
-            cY += mapH + 16
 
+            let statLabelAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15, weight: .bold),
+                .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 1),
+                .kern: 2
+            ]
+            let statValueAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 44, weight: .heavy),
+                .foregroundColor: UIColor.white
+            ]
+            let statLabels = ["DURATION", "VOLUME", "EXERCISES", "SETS"]
+            let statValues = [durationFormatted, volumeFormatted,
+                              "\(session.workoutExercises.count)", "\(session.totalSets)"]
+            let rowH = contentHeight / 4
+            for i in 0..<4 {
+                let rowY = panelY + CGFloat(i) * rowH
+                (statLabels[i] as NSString).draw(at: CGPoint(x: statsX, y: rowY + 4), withAttributes: statLabelAttrs)
+                (statValues[i] as NSString).draw(
+                    with: CGRect(x: statsX, y: rowY + 24, width: statsWidth, height: 58),
+                    options: .usesLineFragmentOrigin, attributes: statValueAttrs, context: nil
+                )
+            }
+            panelY += contentHeight + 18
+
+            // Gold separator 2
             gold.setStroke()
             let sep2 = UIBezierPath()
-            sep2.move(to: CGPoint(x: cX, y: cY))
-            sep2.addLine(to: CGPoint(x: cX + cW, y: cY))
+            sep2.move(to: CGPoint(x: margin, y: panelY))
+            sep2.addLine(to: CGPoint(x: W - margin, y: panelY))
             sep2.lineWidth = 1.5
             sep2.stroke()
-            cY += 14
+            panelY += 16
 
-            let col1X = cX
-            let col2X = cX + cW / 2 + 6
-            let colW  = cW / 2 - 6
-
-            drawStatBlock(label: "DURATION",     value: durationFormatted,                    x: col1X, y: cY,       width: colW, in: cgCtx)
-            drawStatBlock(label: "TOTAL VOLUME", value: volumeFormatted,                      x: col2X, y: cY,       width: colW, in: cgCtx)
-            drawStatBlock(label: "EXERCISES",    value: "\(session.workoutExercises.count)",   x: col1X, y: cY + 88, width: colW, in: cgCtx)
-            drawStatBlock(label: "TOTAL SETS",   value: "\(session.totalSets)",               x: col2X, y: cY + 88, width: colW, in: cgCtx)
-
+            // Hashtags
             let hashAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.40)
+                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.45)
             ]
             let hashStr = "#Fortis  #WorkoutComplete  #Fitness" as NSString
-            let hashW = hashStr.size(withAttributes: hashAttrs).width
-            hashStr.draw(at: CGPoint(x: (W - hashW) / 2, y: panelRect.maxY - 34), withAttributes: hashAttrs)
+            let hashSz = hashStr.size(withAttributes: hashAttrs)
+            hashStr.draw(at: CGPoint(x: (W - hashSz.width) / 2, y: panelY), withAttributes: hashAttrs)
         }
     }
 
-    /// Crops the region of `image` that maps to the panel area on the canvas,
-    /// then applies a Gaussian blur — used for the frosted glass panel background.
-    private func blurRegion(of image: UIImage, panelTopFraction: CGFloat, canvasSize: CGSize) -> UIImage? {
-        guard let cgImage = image.cgImage else { return nil }
-
-        // Map the panel rect back to image-pixel coordinates (accounting for aspect-fill offset)
-        let fillRect = aspectFillRect(imageSize: image.size, targetSize: canvasSize)
-        let scaleX = image.size.width  / fillRect.width
-        let scaleY = image.size.height / fillRect.height
-        let imgPanelY = (canvasSize.height * panelTopFraction - fillRect.minY) * scaleY
-        let cropRect = CGRect(
-            x: 0,
-            y: max(0, imgPanelY),
-            width: image.size.width,
-            height: image.size.height - max(0, imgPanelY)
-        )
-        guard cropRect.height > 0, let cropped = cgImage.cropping(to: cropRect) else { return nil }
-
-        let ci = CIImage(cgImage: cropped)
-        let blur = CIFilter.gaussianBlur()
-        blur.inputImage = ci
-        blur.radius = 24
-
-        guard let output = blur.outputImage else { return nil }
-        let ciCtx = CIContext()
-        guard let result = ciCtx.createCGImage(output, from: ci.extent) else { return nil }
-        return UIImage(cgImage: result)
-    }
-
     // MARK: - Draw helpers
-
-    private func drawStatBlock(label: String, value: String, x: CGFloat, y: CGFloat, width: CGFloat, in ctx: CGContext) {
-        let labelAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 17, weight: .bold),
-            .foregroundColor: UIColor(red: 0.83, green: 0.57, blue: 0.04, alpha: 0.85),
-            .kern: 2.5
-        ]
-        (label as NSString).draw(at: CGPoint(x: x, y: y), withAttributes: labelAttrs)
-
-        let valueAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 38, weight: .heavy),
-            .foregroundColor: UIColor.white
-        ]
-        (value as NSString).draw(
-            with: CGRect(x: x, y: y + 26, width: width, height: 56),
-            options: .usesLineFragmentOrigin,
-            attributes: valueAttrs,
-            context: nil
-        )
-    }
 
     /// Draws a simple shield shape as the Fortis branding icon.
     private func drawShield(in ctx: CGContext, rect: CGRect) {
@@ -661,7 +613,7 @@ struct ExerciseSummaryRow: View {
                     .font(.caption.bold())
                     .foregroundStyle(.romanGold)
             }
-            ForEach(workoutExercise.sets.sorted { $0.setNumber < $1.setNumber }) { set in
+            ForEach(uniqueSets(workoutExercise.sets)) { set in
                 HStack(spacing: 14) {
                     Text("Set \(set.setNumber)")
                         .font(.caption)
@@ -682,6 +634,11 @@ struct ExerciseSummaryRow: View {
         }
         .padding(14)
         .romanCard()
+    }
+
+    private func uniqueSets(_ sets: [ExerciseSet]) -> [ExerciseSet] {
+        var seen = Set<Int>()
+        return sets.sorted { $0.setNumber < $1.setNumber }.filter { seen.insert($0.setNumber).inserted }
     }
 
     private var volumeFormatted: String {
@@ -768,11 +725,11 @@ struct ShareMuscleMapView: View {
     private var bodyGender: BodyGender { gender == "female" ? .female : .male }
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 4) {
             highlightedBodyView(side: .front).frame(maxWidth: .infinity)
             highlightedBodyView(side: .back).frame(maxWidth: .infinity)
         }
-        .padding(12)
+        .padding(6)
         .background(Color.clear)
     }
 
