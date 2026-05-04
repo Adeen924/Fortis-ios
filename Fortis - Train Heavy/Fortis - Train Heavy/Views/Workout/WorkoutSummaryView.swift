@@ -47,6 +47,12 @@ private enum WorkoutSummarySheet: Identifiable {
     }
 }
 
+private extension String {
+    var normalizedPRKey: String {
+        trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
 struct WorkoutSummaryView: View {
     @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var appSettings: AppSettings
@@ -85,36 +91,50 @@ struct WorkoutSummaryView: View {
     }
 
     private var personalRecords: [PersonalRecord] {
-        var records: [PersonalRecord] = []
+        var bestRecords: [String: PersonalRecord] = [:]
         let pastMaxes = getPastMaxes()
         for workoutEx in session.workoutExercises {
-            for set in workoutEx.sets where set.isCompleted {
-                let key = "\(workoutEx.exerciseID)_\(set.reps)"
-                let pastMax = pastMaxes[key]
-                if set.reps > 0 && (pastMax == nil || set.weight > (pastMax ?? 0)) {
-                    records.append(PersonalRecord(
+            for set in workoutEx.sets where set.reps > 0 {
+                let keys = prKeys(for: workoutEx, reps: set.reps)
+                let pastMax = keys.compactMap { pastMaxes[$0] }.max()
+                guard pastMax == nil || set.weight > (pastMax ?? 0) else { continue }
+
+                let displayKey = "\(workoutEx.exerciseName.normalizedPRKey)_\(set.reps)"
+                if bestRecords[displayKey] == nil || set.weight > bestRecords[displayKey]!.weight {
+                    bestRecords[displayKey] = PersonalRecord(
                         exerciseName: workoutEx.exerciseName,
                         reps: set.reps,
                         weight: set.weight,
                         previousMax: pastMax ?? 0
-                    ))
+                    )
                 }
             }
         }
-        return records.sorted { $0.weight > $1.weight }
+        return bestRecords.values.sorted {
+            if $0.weight != $1.weight { return $0.weight > $1.weight }
+            return $0.exerciseName < $1.exerciseName
+        }
     }
 
     private func getPastMaxes() -> [String: Double] {
         var maxes: [String: Double] = [:]
         for pastSession in pastSessions where pastSession.id != session.id {
             for workoutEx in pastSession.workoutExercises {
-                for set in workoutEx.sets where set.isCompleted {
-                    let key = "\(workoutEx.exerciseID)_\(set.reps)"
-                    maxes[key] = max(maxes[key] ?? 0, set.weight)
+                for set in workoutEx.sets where set.reps > 0 {
+                    for key in prKeys(for: workoutEx, reps: set.reps) {
+                        maxes[key] = max(maxes[key] ?? 0, set.weight)
+                    }
                 }
             }
         }
         return maxes
+    }
+
+    private func prKeys(for workoutEx: WorkoutExercise, reps: Int) -> [String] {
+        [
+            "\(workoutEx.exerciseID.uuidString)_\(reps)",
+            "\(workoutEx.exerciseName.normalizedPRKey)_\(reps)"
+        ]
     }
 
     var body: some View {

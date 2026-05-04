@@ -175,10 +175,10 @@ final class WorkoutViewModel: Identifiable {
             workoutExercises[eIdx].sets[sIdx].isCompleted = completed
             if completed { workoutExercises[eIdx].sets[sIdx].completedAt = Date() }
         }
-        // Auto-complete if both reps and weight are set
+        // Auto-complete once reps are logged. This keeps bodyweight and zero-load sets from being ignored.
         let currentReps = reps ?? workoutExercises[eIdx].sets[sIdx].reps
         let currentWeight = weight ?? workoutExercises[eIdx].sets[sIdx].weight
-        if currentReps > 0 && currentWeight > 0 && !workoutExercises[eIdx].sets[sIdx].isCompleted {
+        if currentReps > 0 && currentWeight >= 0 && !workoutExercises[eIdx].sets[sIdx].isCompleted {
             workoutExercises[eIdx].sets[sIdx].isCompleted = true
             workoutExercises[eIdx].sets[sIdx].completedAt = Date()
         }
