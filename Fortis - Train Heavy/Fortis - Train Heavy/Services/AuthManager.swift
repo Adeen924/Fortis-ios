@@ -12,7 +12,21 @@ final class AuthManager {
 
     private var authHandle: AuthStateDidChangeListenerHandle?
 
-    func startSessionListener() {
+    func startSessionListener() async {
+        // If there is a cached user, verify the account still exists on Firebase
+        // before trusting it. This catches accounts deleted from the console.
+        if let cached = Auth.auth().currentUser {
+            do {
+                try await cached.reload()
+                // Account still valid — set state immediately so the UI doesn't flicker
+                self.currentUserID = cached.uid
+                self.isAuthenticated = true
+            } catch {
+                // Account was deleted, disabled, or token is permanently invalid — sign out
+                signOut()
+            }
+        }
+
         guard authHandle == nil else { return }
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }

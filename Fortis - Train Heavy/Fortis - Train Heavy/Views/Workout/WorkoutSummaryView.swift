@@ -78,7 +78,7 @@ struct WorkoutSummaryView: View {
         var bestByKey: [String: PersonalRecord] = [:]
         let pastMaxes = getPastMaxes()
         for workoutEx in session.workoutExercises {
-            for set in workoutEx.sets where set.isCompleted {
+            for set in workoutEx.sets where set.reps > 0 && set.weight > 0 && !set.isWarmup {
                 let key = "\(workoutEx.exerciseID)_\(set.reps)"
                 let pastMax = pastMaxes[key] ?? 0
                 guard set.weight > pastMax else { continue }
@@ -99,7 +99,7 @@ struct WorkoutSummaryView: View {
         var maxes: [String: Double] = [:]
         for pastSession in pastSessions {
             for workoutEx in pastSession.workoutExercises {
-                for set in workoutEx.sets where set.isCompleted {
+                for set in workoutEx.sets where set.reps > 0 && set.weight > 0 && !set.isWarmup {
                     let key = "\(workoutEx.exerciseID)_\(set.reps)"
                     maxes[key] = max(maxes[key] ?? 0, set.weight)
                 }

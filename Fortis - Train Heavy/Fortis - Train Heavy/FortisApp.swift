@@ -38,7 +38,7 @@ struct FortisApp: App {
             .animation(.easeInOut(duration: 0.35), value: isCheckingSession)
             .animation(.easeInOut(duration: 0.4), value: authManager.isAuthenticated)
             .task {
-                authManager.startSessionListener()
+                await authManager.startSessionListener()
                 dataStore.start(for: authManager.currentUserID)
                 isCheckingSession = false
             }
