@@ -3,6 +3,7 @@ import AuthenticationServices
 
 struct WelcomeView: View {
     @Environment(AuthManager.self) private var authManager
+    @EnvironmentObject private var dataStore: FirebaseDataStore
 
     @State private var showingSignUp   = false
     @State private var showingSignIn   = false
@@ -33,6 +34,7 @@ struct WelcomeView: View {
         .fullScreenCover(isPresented: $showingSignIn) {
             SignInView()
                 .environment(authManager)
+                .environmentObject(dataStore)
         }
         .sheet(isPresented: $authManager.needsProfileCompletion) {
             SocialProfileCompletionView()

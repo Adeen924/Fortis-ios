@@ -66,6 +66,14 @@ final class FirebaseDataStore: ObservableObject {
             .setData(session.firestoreData, merge: true)
     }
 
+    func profileExists(userId: String) async throws -> Bool {
+        let snapshot = try await FirebaseService.db
+            .collection(FirebaseService.usersCollection)
+            .document(userId)
+            .getDocument()
+        return snapshot.exists && UserProfile(firestoreData: snapshot.data() ?? [:], documentId: snapshot.documentID) != nil
+    }
+
     func deleteAllUserData(userId: String) async throws {
         let userRef = FirebaseService.db.collection(FirebaseService.usersCollection).document(userId)
         let workoutDocs = try await userRef.collection(FirebaseService.workoutsCollection).getDocuments().documents
@@ -122,7 +130,11 @@ final class FirebaseDataStore: ObservableObject {
                         self.lastError = error.localizedDescription
                         return
                     }
-                    self.profile = snapshot.flatMap { UserProfile(firestoreData: $0.data() ?? [:], documentId: $0.documentID) }
+                    guard let snapshot, snapshot.exists else {
+                        self.profile = nil
+                        return
+                    }
+                    self.profile = UserProfile(firestoreData: snapshot.data() ?? [:], documentId: snapshot.documentID)
                 }
             }
     }
@@ -172,25 +184,51 @@ private extension UserProfile {
     }
 
     convenience init?(firestoreData data: [String: Any], documentId: String) {
+        guard !data.isEmpty,
+              let firstName = data["firstName"] as? String,
+              let lastName = data["lastName"] as? String,
+              let username = data["username"] as? String,
+              let age = Self.intValue(data["age"]),
+              let heightFeet = Self.intValue(data["heightFeet"]),
+              let heightInches = Self.intValue(data["heightInches"]),
+              let weightLbs = Self.doubleValue(data["weightLbs"]),
+              let goals = data["goals"] as? [String],
+              let authProvider = data["authProvider"] as? String else {
+            return nil
+        }
+
         let id = (data["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
         self.init(
             id: id,
             firebaseUID: data["firebaseUID"] as? String ?? documentId,
-            firstName: data["firstName"] as? String ?? "",
-            lastName: data["lastName"] as? String ?? "",
-            username: data["username"] as? String ?? "",
+            firstName: firstName,
+            lastName: lastName,
+            username: username,
             contactIdentifier: data["contactIdentifier"] as? String,
             email: data["email"] as? String,
             phoneNumber: data["phoneNumber"] as? String,
-            age: data["age"] as? Int ?? 18,
+            age: age,
             gender: data["gender"] as? String,
-            heightFeet: data["heightFeet"] as? Int ?? 5,
-            heightInches: data["heightInches"] as? Int ?? 10,
-            weightLbs: data["weightLbs"] as? Double ?? 160,
-            goals: data["goals"] as? [String] ?? [],
-            authProvider: data["authProvider"] as? String ?? "email",
+            heightFeet: heightFeet,
+            heightInches: heightInches,
+            weightLbs: weightLbs,
+            goals: goals,
+            authProvider: authProvider,
             createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? data["createdAt"] as? Date ?? Date()
         )
+    }
+
+    static func intValue(_ value: Any?) -> Int? {
+        if let value = value as? Int { return value }
+        if let value = value as? NSNumber { return value.intValue }
+        return nil
+    }
+
+    static func doubleValue(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
     }
 }
 

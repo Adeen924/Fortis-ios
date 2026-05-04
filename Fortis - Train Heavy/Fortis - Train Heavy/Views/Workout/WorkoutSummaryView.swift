@@ -35,6 +35,18 @@ struct PersonalRecord: Identifiable {
     let previousMax: Double
 }
 
+private enum WorkoutSummarySheet: Identifiable {
+    case rename
+    case share
+
+    var id: String {
+        switch self {
+        case .rename: return "rename"
+        case .share: return "share"
+        }
+    }
+}
+
 struct WorkoutSummaryView: View {
     @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var appSettings: AppSettings
@@ -45,13 +57,12 @@ struct WorkoutSummaryView: View {
     private var profile: UserProfile? { dataStore.profile }
     private var pastSessions: [WorkoutSession] { dataStore.workouts }
 
-    @State private var showShareSheet = false
     @State private var shareImage: UIImage? = nil
     @State private var showPhotoPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var backgroundImage: UIImage? = nil
     @State private var isGeneratingImage = false
-    @State private var showRenameSheet = false
+    @State private var activeSheet: WorkoutSummarySheet?
     @State private var workoutNameDraft = ""
     @State private var displayedName: String
 
@@ -79,13 +90,13 @@ struct WorkoutSummaryView: View {
         for workoutEx in session.workoutExercises {
             for set in workoutEx.sets where set.isCompleted {
                 let key = "\(workoutEx.exerciseID)_\(set.reps)"
-                let pastMax = pastMaxes[key] ?? 0
-                if set.weight > pastMax {
+                let pastMax = pastMaxes[key]
+                if set.reps > 0 && (pastMax == nil || set.weight > (pastMax ?? 0)) {
                     records.append(PersonalRecord(
                         exerciseName: workoutEx.exerciseName,
                         reps: set.reps,
                         weight: set.weight,
-                        previousMax: pastMax
+                        previousMax: pastMax ?? 0
                     ))
                 }
             }
@@ -127,6 +138,12 @@ struct WorkoutSummaryView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .environmentObject(appSettings)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("RENAME", action: beginRenameWorkout)
+                        .font(.system(size: 12, weight: .black))
+                        .tracking(2)
+                        .foregroundStyle(.romanGold)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("DONE", action: onDismiss)
                         .font(.system(size: 12, weight: .black))
@@ -136,9 +153,6 @@ struct WorkoutSummaryView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showRenameSheet) {
-            renameSheet
-        }
         .photosPicker(
             isPresented: $showPhotoPicker,
             selection: $selectedPhotoItem,
@@ -159,12 +173,17 @@ struct WorkoutSummaryView: View {
                 let muscleMap = renderMuscleMapImage()
                 shareImage = generateShareImage(background: pickedImage, muscleMap: muscleMap)
                 isGeneratingImage = false
-                showShareSheet = true
+                activeSheet = .share
             }
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let image = shareImage {
-                ActivityView(activityItems: [image])
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .rename:
+                renameSheet
+            case .share:
+                if let image = shareImage {
+                    ActivityView(activityItems: [image])
+                }
             }
         }
     }
@@ -193,13 +212,13 @@ struct WorkoutSummaryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { showRenameSheet = false }
+                    Button("Cancel") { activeSheet = nil }
                         .foregroundStyle(.romanParchmentDim)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") {
                         renameWorkout()
-                        showRenameSheet = false
+                        activeSheet = nil
                     }
                     .foregroundStyle(.romanGold)
                     .bold()
@@ -231,6 +250,17 @@ struct WorkoutSummaryView: View {
             .contextMenu {
                 Button("Rename", action: beginRenameWorkout)
             }
+            Button(action: beginRenameWorkout) {
+                Label("Rename", systemImage: "pencil")
+                    .font(.system(size: 11, weight: .black))
+                    .tracking(2)
+                    .foregroundStyle(.romanGold)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.romanSurfaceHigh)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -366,7 +396,7 @@ struct WorkoutSummaryView: View {
 
     private func beginRenameWorkout() {
         workoutNameDraft = displayedName
-        showRenameSheet = true
+        activeSheet = .rename
     }
 
     // MARK: - Image Generation

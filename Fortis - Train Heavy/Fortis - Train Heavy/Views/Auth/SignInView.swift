@@ -3,6 +3,7 @@ import AuthenticationServices
 
 struct SignInView: View {
     @Environment(AuthManager.self) private var authManager
+    @EnvironmentObject private var dataStore: FirebaseDataStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var identifier  = ""
@@ -192,8 +193,17 @@ struct SignInView: View {
                     email: email,
                     password: password
                 )
+
+                guard try await dataStore.profileExists(userId: userId) else {
+                    authManager.signOut()
+                    errorText = "No Fortis profile was found for this email. Create an account first."
+                    isLoading = false
+                    return
+                }
+
                 authManager.completeSignIn(userID: userId)
             } catch {
+                authManager.signOut()
                 errorText = error.localizedDescription
             }
             isLoading = false

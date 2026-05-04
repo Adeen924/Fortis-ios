@@ -32,7 +32,6 @@ final class AuthManager {
 
     func signInWithEmail(email: String, password: String) async throws -> String {
         let result = try await Auth.auth().signIn(withEmail: email, password: password)
-        completeSignIn(userID: result.user.uid)
         return result.user.uid
     }
 
