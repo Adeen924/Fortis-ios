@@ -26,14 +26,16 @@ final class FirebaseDataStore: ObservableObject {
         guard activeUserId != userId else { return }
         stop()
         activeUserId = userId
-        loadExercises()
 
         guard let userId else {
             profile = nil
             workouts = []
+            exercises = []
+            hasLoadedExercises = false
             return
         }
 
+        loadExercises()
         listenForProfile(userId: userId)
         listenForWorkouts(userId: userId)
     }
@@ -41,8 +43,10 @@ final class FirebaseDataStore: ObservableObject {
     func stop() {
         profileListener?.remove()
         workoutListener?.remove()
+        exerciseListener?.remove()
         profileListener = nil
         workoutListener = nil
+        exerciseListener = nil
         activeUserId = nil
     }
 
