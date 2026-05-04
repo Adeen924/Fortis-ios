@@ -15,6 +15,7 @@ struct ActiveWorkoutView: View {
     @State private var showingCancelAlert = false
     @State private var showingRenameSheet = false
     @State private var finishedSession: WorkoutSession?
+    @State private var summaryPastSessions: [WorkoutSession] = []
     @State private var errorText: String?
 
     var body: some View {
@@ -64,7 +65,7 @@ struct ActiveWorkoutView: View {
                 Text(errorText ?? "")
             }
             .fullScreenCover(item: $finishedSession) { session in
-                WorkoutSummaryView(session: session, onDismiss: {
+                WorkoutSummaryView(session: session, pastSessions: summaryPastSessions, onDismiss: {
                     finishedSession = nil
                     onDismiss()
                 })
@@ -209,11 +210,14 @@ struct ActiveWorkoutView: View {
     }
 
     private func finishWorkout() {
+        // Capture past sessions before saving so the new workout is never in the list
+        let pastWorkouts = dataStore.workouts
         let session = viewModel.finishWorkout()
         Task {
             do {
                 try await dataStore.saveWorkout(session, userId: authManager.currentUserID)
                 viewModel.clearDraft()
+                summaryPastSessions = pastWorkouts
                 finishedSession = session
             } catch {
                 viewModel.isFinished = false

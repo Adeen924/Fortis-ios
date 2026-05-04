@@ -55,7 +55,11 @@ struct HistoryView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(item: $selectedSession) { session in
-                WorkoutSummaryView(session: session) { selectedSession = nil }
+                WorkoutSummaryView(
+                    session: session,
+                    pastSessions: sessions.filter { $0.startDate < session.startDate },
+                    onDismiss: { selectedSession = nil }
+                )
             }
         }
     }

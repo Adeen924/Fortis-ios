@@ -35,45 +35,29 @@ struct PersonalRecord: Identifiable {
     let previousMax: Double
 }
 
-private enum WorkoutSummarySheet: Identifiable {
-    case rename
-    case share
-
-    var id: String {
-        switch self {
-        case .rename: return "rename"
-        case .share: return "share"
-        }
-    }
-}
-
-private extension String {
-    var normalizedPRKey: String {
-        trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
-}
-
 struct WorkoutSummaryView: View {
     @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var appSettings: AppSettings
     @EnvironmentObject private var dataStore: FirebaseDataStore
     let session: WorkoutSession
+    let pastSessions: [WorkoutSession]
     let onDismiss: () -> Void
 
     private var profile: UserProfile? { dataStore.profile }
-    private var pastSessions: [WorkoutSession] { dataStore.workouts }
 
+    @State private var showShareSheet = false
     @State private var shareImage: UIImage? = nil
     @State private var showPhotoPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var backgroundImage: UIImage? = nil
     @State private var isGeneratingImage = false
-    @State private var activeSheet: WorkoutSummarySheet?
+    @State private var showRenameSheet = false
     @State private var workoutNameDraft = ""
     @State private var displayedName: String
 
-    init(session: WorkoutSession, onDismiss: @escaping () -> Void) {
+    init(session: WorkoutSession, pastSessions: [WorkoutSession], onDismiss: @escaping () -> Void) {
         self.session = session
+        self.pastSessions = pastSessions
         self.onDismiss = onDismiss
         _displayedName = State(initialValue: WorkoutSession.normalizedName(session.name))
     }
@@ -91,50 +75,37 @@ struct WorkoutSummaryView: View {
     }
 
     private var personalRecords: [PersonalRecord] {
-        var bestRecords: [String: PersonalRecord] = [:]
+        var bestByKey: [String: PersonalRecord] = [:]
         let pastMaxes = getPastMaxes()
         for workoutEx in session.workoutExercises {
-            for set in workoutEx.sets where set.reps > 0 {
-                let keys = prKeys(for: workoutEx, reps: set.reps)
-                let pastMax = keys.compactMap { pastMaxes[$0] }.max()
-                guard pastMax == nil || set.weight > (pastMax ?? 0) else { continue }
-
-                let displayKey = "\(workoutEx.exerciseName.normalizedPRKey)_\(set.reps)"
-                if bestRecords[displayKey] == nil || set.weight > bestRecords[displayKey]!.weight {
-                    bestRecords[displayKey] = PersonalRecord(
-                        exerciseName: workoutEx.exerciseName,
-                        reps: set.reps,
-                        weight: set.weight,
-                        previousMax: pastMax ?? 0
-                    )
-                }
+            for set in workoutEx.sets where set.isCompleted {
+                let key = "\(workoutEx.exerciseID)_\(set.reps)"
+                let pastMax = pastMaxes[key] ?? 0
+                guard set.weight > pastMax else { continue }
+                let candidate = PersonalRecord(
+                    exerciseName: workoutEx.exerciseName,
+                    reps: set.reps,
+                    weight: set.weight,
+                    previousMax: pastMax
+                )
+                if let existing = bestByKey[key], existing.weight >= set.weight { continue }
+                bestByKey[key] = candidate
             }
         }
-        return bestRecords.values.sorted {
-            if $0.weight != $1.weight { return $0.weight > $1.weight }
-            return $0.exerciseName < $1.exerciseName
-        }
+        return Array(bestByKey.values).sorted { $0.weight > $1.weight }
     }
 
     private func getPastMaxes() -> [String: Double] {
         var maxes: [String: Double] = [:]
-        for pastSession in pastSessions where pastSession.id != session.id {
+        for pastSession in pastSessions {
             for workoutEx in pastSession.workoutExercises {
-                for set in workoutEx.sets where set.reps > 0 {
-                    for key in prKeys(for: workoutEx, reps: set.reps) {
-                        maxes[key] = max(maxes[key] ?? 0, set.weight)
-                    }
+                for set in workoutEx.sets where set.isCompleted {
+                    let key = "\(workoutEx.exerciseID)_\(set.reps)"
+                    maxes[key] = max(maxes[key] ?? 0, set.weight)
                 }
             }
         }
         return maxes
-    }
-
-    private func prKeys(for workoutEx: WorkoutExercise, reps: Int) -> [String] {
-        [
-            "\(workoutEx.exerciseID.uuidString)_\(reps)",
-            "\(workoutEx.exerciseName.normalizedPRKey)_\(reps)"
-        ]
     }
 
     var body: some View {
@@ -158,12 +129,6 @@ struct WorkoutSummaryView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .environmentObject(appSettings)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("RENAME", action: beginRenameWorkout)
-                        .font(.system(size: 12, weight: .black))
-                        .tracking(2)
-                        .foregroundStyle(.romanGold)
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("DONE", action: onDismiss)
                         .font(.system(size: 12, weight: .black))
@@ -173,6 +138,9 @@ struct WorkoutSummaryView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showRenameSheet) {
+            renameSheet
+        }
         .photosPicker(
             isPresented: $showPhotoPicker,
             selection: $selectedPhotoItem,
@@ -193,17 +161,12 @@ struct WorkoutSummaryView: View {
                 let muscleMap = renderMuscleMapImage()
                 shareImage = generateShareImage(background: pickedImage, muscleMap: muscleMap)
                 isGeneratingImage = false
-                activeSheet = .share
+                showShareSheet = true
             }
         }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .rename:
-                renameSheet
-            case .share:
-                if let image = shareImage {
-                    ActivityView(activityItems: [image])
-                }
+        .sheet(isPresented: $showShareSheet) {
+            if let image = shareImage {
+                ActivityView(activityItems: [image])
             }
         }
     }
@@ -232,13 +195,13 @@ struct WorkoutSummaryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { activeSheet = nil }
+                    Button("Cancel") { showRenameSheet = false }
                         .foregroundStyle(.romanParchmentDim)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") {
                         renameWorkout()
-                        activeSheet = nil
+                        showRenameSheet = false
                     }
                     .foregroundStyle(.romanGold)
                     .bold()
@@ -270,17 +233,6 @@ struct WorkoutSummaryView: View {
             .contextMenu {
                 Button("Rename", action: beginRenameWorkout)
             }
-            Button(action: beginRenameWorkout) {
-                Label("Rename", systemImage: "pencil")
-                    .font(.system(size: 11, weight: .black))
-                    .tracking(2)
-                    .foregroundStyle(.romanGold)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.romanSurfaceHigh)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -416,7 +368,7 @@ struct WorkoutSummaryView: View {
 
     private func beginRenameWorkout() {
         workoutNameDraft = displayedName
-        activeSheet = .rename
+        showRenameSheet = true
     }
 
     // MARK: - Image Generation
