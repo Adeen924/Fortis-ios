@@ -216,23 +216,15 @@ struct WorkoutSummaryView: View {
     private var summaryHero: some View {
         VStack(spacing: 14) {
             Button(action: beginRenameWorkout) {
-                HStack(spacing: 8) {
-                    Text(displayedName)
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                    Image(systemName: "pencil")
-                        .font(.subheadline.bold())
-                        .accessibilityHidden(true)
-                }
-                .foregroundStyle(.romanParchment)
-                .contentShape(Rectangle())
+                Text(displayedName)
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.romanParchment)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Rename workout")
             .accessibilityValue(displayedName)
-            .contextMenu {
-                Button("Rename", action: beginRenameWorkout)
-            }
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
