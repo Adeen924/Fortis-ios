@@ -40,22 +40,45 @@ struct MuscleMapView: View {
 
     private func mapToMuscle(_ name: String) -> Muscle? {
         switch name.lowercased() {
-        case "chest": return .chest
-        case "shoulders": return .deltoids
-        case "biceps": return .biceps
-        case "triceps": return .triceps
-        case "forearms": return .forearm
-        case "core": return .obliques
-        case "abs": return .abs
-        case "quads": return .quadriceps
-        case "glutes": return .gluteal
-        case "hamstrings": return .hamstring
-        case "calves": return .calves
-        case "back": return .upperBack
-        case "lats": return .upperBack
-        case "lower back": return .lowerBack
-        case "traps": return .trapezius
-        default: return nil
+        // ── Base muscles ──────────────────────────────────────────
+        case "abs":                             return .abs
+        case "biceps":                          return .biceps
+        case "calves":                          return .calves
+        case "chest":                           return .chest
+        case "deltoids", "shoulders":           return .deltoids
+        case "feet":                            return .feet
+        case "forearm", "forearms":             return .forearm
+        case "gluteal", "glutes":               return .gluteal
+        case "hamstring", "hamstrings":         return .hamstring
+        case "hands":                           return .hands
+        case "head":                            return .head
+        case "knees":                           return .knees
+        case "lower back":                      return .lowerBack
+        case "obliques":                        return .obliques
+        case "quadriceps", "quads":             return .quadriceps
+        case "rhomboids":                       return .rhomboids
+        case "rotator cuff":                    return .rotatorCuff
+        case "serratus":                        return .serratus
+        case "tibialis":                        return .tibialis
+        case "trapezius", "traps":              return .trapezius
+        case "triceps":                         return .triceps
+        case "upper back", "back", "lats":      return .upperBack
+        // ── Sub-groups ────────────────────────────────────────────
+        case "upper chest":                     return .upperChest
+        case "lower chest":                     return .lowerChest
+        case "upper abs":                       return .upperAbs
+        case "lower abs":                       return .lowerAbs
+        case "inner quad":                      return .innerQuad
+        case "outer quad":                      return .outerQuad
+        case "hip flexors":                     return .hipFlexors
+        case "front deltoid":                   return .frontDeltoid
+        case "rear deltoid":                    return .rearDeltoid
+        case "upper trapezius":                 return .upperTrapezius
+        case "lower trapezius":                 return .lowerTrapezius
+        case "ankles":                          return .ankles
+        case "adductors":                       return .adductors
+        case "neck":                            return .neck
+        default:                                return nil
         }
     }
 }
