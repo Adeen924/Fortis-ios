@@ -129,6 +129,13 @@ struct WorkoutSummaryView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .environmentObject(appSettings)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: beginRenameWorkout) {
+                        Image(systemName: "pencil")
+                            .foregroundStyle(.romanGold)
+                    }
+                    .accessibilityLabel("Rename workout")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("DONE", action: onDismiss)
                         .font(.system(size: 12, weight: .black))
@@ -215,25 +222,10 @@ struct WorkoutSummaryView: View {
     // MARK: - Hero
     private var summaryHero: some View {
         VStack(spacing: 14) {
-            Button(action: beginRenameWorkout) {
-                HStack(spacing: 8) {
-                    Text(displayedName)
-                        .font(.title2.bold())
-                        .foregroundStyle(.romanParchment)
-                        .multilineTextAlignment(.center)
-                    Image(systemName: "pencil")
-                        .font(.subheadline)
-                        .foregroundStyle(.romanGold)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.romanSurface)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.romanBorder, lineWidth: 0.5))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Rename workout")
-            .accessibilityValue(displayedName)
+            Text(displayedName)
+                .font(.title2.bold())
+                .foregroundStyle(.romanParchment)
+                .multilineTextAlignment(.center)
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
