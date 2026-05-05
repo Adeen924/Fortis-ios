@@ -216,11 +216,20 @@ struct WorkoutSummaryView: View {
     private var summaryHero: some View {
         VStack(spacing: 14) {
             Button(action: beginRenameWorkout) {
-                Text(displayedName)
-                    .font(.title2.bold())
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.romanParchment)
-                    .contentShape(Rectangle())
+                HStack(spacing: 8) {
+                    Text(displayedName)
+                        .font(.title2.bold())
+                        .foregroundStyle(.romanParchment)
+                        .multilineTextAlignment(.center)
+                    Image(systemName: "pencil")
+                        .font(.subheadline)
+                        .foregroundStyle(.romanGold)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.romanSurface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.romanBorder, lineWidth: 0.5))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Rename workout")
