@@ -129,13 +129,6 @@ struct WorkoutSummaryView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .environmentObject(appSettings)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: beginRenameWorkout) {
-                        Image(systemName: "pencil")
-                            .foregroundStyle(.romanGold)
-                    }
-                    .accessibilityLabel("Rename workout")
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("DONE", action: onDismiss)
                         .font(.system(size: 12, weight: .black))
@@ -222,10 +215,17 @@ struct WorkoutSummaryView: View {
     // MARK: - Hero
     private var summaryHero: some View {
         VStack(spacing: 14) {
-            Text(displayedName)
-                .font(.title2.bold())
-                .foregroundStyle(.romanParchment)
-                .multilineTextAlignment(.center)
+            HStack(spacing: 6) {
+                Text(displayedName)
+                    .font(.title2.bold())
+                    .foregroundStyle(.romanParchment)
+                    .multilineTextAlignment(.center)
+                Image(systemName: "pencil")
+                    .font(.subheadline)
+                    .foregroundStyle(.romanGold)
+            }
+            .onTapGesture { beginRenameWorkout() }
+            .accessibilityLabel("Rename workout: \(displayedName)")
             MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
                 .frame(height: 250)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
