@@ -110,18 +110,43 @@ struct WorkoutSummaryView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.romanBackground.ignoresSafeArea()
-                ScrollView {
-                    VStack(spacing: 24) {
-                        summaryHero
-                        statsGrid
-                        exerciseBreakdown
-                        personalRecordsSection
-                        shareSection
+            VStack(spacing: 0) {
+
+                // ── Fixed name header — lives outside the ScrollView ──
+                Button(action: beginRenameWorkout) {
+                    HStack(spacing: 8) {
+                        Text(displayedName)
+                            .font(.headline.bold())
+                            .foregroundStyle(.romanParchment)
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
+                            .foregroundStyle(.romanGold)
                     }
-                    .padding()
-                    .padding(.bottom, 32)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                }
+                .background(Color.romanBackground)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color.romanBorder)
+                        .frame(height: 0.5)
+                }
+
+                // ── Scrollable content ────────────────────────────────
+                ZStack {
+                    Color.romanBackground.ignoresSafeArea()
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            summaryHero
+                            statsGrid
+                            exerciseBreakdown
+                            personalRecordsSection
+                            shareSection
+                        }
+                        .padding()
+                        .padding(.bottom, 32)
+                    }
                 }
             }
             .navigationTitle("WORKOUT SUMMARY")
@@ -214,24 +239,11 @@ struct WorkoutSummaryView: View {
 
     // MARK: - Hero
     private var summaryHero: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 6) {
-                Text(displayedName)
-                    .font(.title2.bold())
-                    .foregroundStyle(.romanParchment)
-                    .multilineTextAlignment(.center)
-                Image(systemName: "pencil")
-                    .font(.subheadline)
-                    .foregroundStyle(.romanGold)
-            }
-            .onTapGesture { beginRenameWorkout() }
-            .accessibilityLabel("Rename workout: \(displayedName)")
-            MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
-                .frame(height: 250)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .padding(.horizontal)
-        }
-        .padding(.top, 8)
+        MuscleMapView(primaryMuscles: combinedPrimaryMuscles, secondaryMuscles: combinedSecondaryMuscles)
+            .frame(height: 250)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal)
+            .padding(.top, 8)
     }
 
     // MARK: - Stats Grid
