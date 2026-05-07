@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct FortisApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+
     @StateObject private var appSettings = AppSettings.shared
     @StateObject private var dataStore = FirebaseDataStore()
     @State private var authManager: AuthManager
