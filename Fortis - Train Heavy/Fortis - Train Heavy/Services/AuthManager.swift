@@ -3,6 +3,7 @@ import CryptoKit
 import FirebaseAuth
 import Foundation
 import Security
+import UIKit
 
 @Observable
 final class AuthManager {
@@ -18,6 +19,7 @@ final class AuthManager {
     @ObservationIgnored private var _googleAuthSession: ASWebAuthenticationSession?
     @ObservationIgnored private var _googleContextProvider: GoogleSignInContextProvider?
     @ObservationIgnored private var phoneSignUpInProgress = false
+    @ObservationIgnored private let phoneAuthUIDelegate = PhoneAuthUIDelegate()
 
     func startSessionListener() async {
         if let cached = Auth.auth().currentUser {
@@ -61,8 +63,9 @@ final class AuthManager {
         return result.user.uid
     }
 
+    @MainActor
     func sendPhoneVerification(phoneNumber: String) async throws -> String {
-        try await PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: nil)
+        try await PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: phoneAuthUIDelegate)
     }
 
     func signInWithPhone(verificationID: String, code: String) async throws -> String {
@@ -293,4 +296,30 @@ private class GoogleSignInContextProvider: NSObject, ASWebAuthenticationPresenta
     let anchor: ASPresentationAnchor
     init(anchor: ASPresentationAnchor) { self.anchor = anchor }
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor { anchor }
+}
+
+private class PhoneAuthUIDelegate: NSObject, AuthUIDelegate {
+    @MainActor
+    func present(_ viewControllerToPresent: UIViewController, animated: Bool, completion: (() -> Void)? = nil) {
+        guard let topVC = topViewController() else { completion?(); return }
+        topVC.present(viewControllerToPresent, animated: animated, completion: completion)
+    }
+
+    @MainActor
+    func dismiss(animated: Bool, completion: (() -> Void)? = nil) {
+        guard let topVC = topViewController() else { completion?(); return }
+        topVC.dismiss(animated: animated, completion: completion)
+    }
+
+    @MainActor
+    private func topViewController() -> UIViewController? {
+        guard let root = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow })?.rootViewController
+        else { return nil }
+        var top = root
+        while let presented = top.presentedViewController { top = presented }
+        return top
+    }
 }
