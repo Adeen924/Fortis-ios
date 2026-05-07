@@ -9,20 +9,22 @@ final class AuthManager {
     var isAuthenticated = false
     var currentUserID: String?
     var needsProfileCompletion = false
+    var pendingSocialFirstName = ""
+    var pendingSocialLastName = ""
+    var pendingSocialEmail: String? = nil
+    var pendingSocialAuthProvider = "apple"
 
     private var authHandle: AuthStateDidChangeListenerHandle?
+    @ObservationIgnored private var _googleAuthSession: ASWebAuthenticationSession?
+    @ObservationIgnored private var _googleContextProvider: GoogleSignInContextProvider?
 
     func startSessionListener() async {
-        // If there is a cached user, verify the account still exists on Firebase
-        // before trusting it. This catches accounts deleted from the console.
         if let cached = Auth.auth().currentUser {
             do {
                 try await cached.reload()
-                // Account still valid — set state immediately so the UI doesn't flicker
                 self.currentUserID = cached.uid
                 self.isAuthenticated = true
             } catch {
-                // Account was deleted, disabled, or token is permanently invalid — sign out
                 signOut()
             }
         }
@@ -61,8 +63,110 @@ final class AuthManager {
             fullName: credential.fullName
         )
         let result = try await Auth.auth().signIn(with: firebaseCredential)
-        beginSocialOnboarding(userID: result.user.uid)
+
+        let firstName = credential.fullName?.givenName ?? ""
+        let lastName = credential.fullName?.familyName ?? ""
+        let email = credential.email
+        beginSocialOnboarding(
+            userID: result.user.uid,
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            authProvider: "apple"
+        )
         return result.user.uid
+    }
+
+    @MainActor
+    func signInWithGoogle(presentationAnchor: ASPresentationAnchor) async throws -> String {
+        let clientID = "445557254761-d7g6qak0r7hgenao0qfq09nrtiobic6b.apps.googleusercontent.com"
+        let redirectScheme = "com.googleusercontent.apps.445557254761-d7g6qak0r7hgenao0qfq09nrtiobic6b"
+        let redirectURI = redirectScheme + ":/"
+
+        let codeVerifier = Self.randomNonceString(length: 64)
+        let codeChallenge = Self.sha256Base64URLEncoded(codeVerifier)
+        let state = Self.randomNonceString(length: 32)
+
+        var authComps = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
+        authComps.queryItems = [
+            URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "scope", value: "openid email profile"),
+            URLQueryItem(name: "code_challenge", value: codeChallenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "state", value: state),
+        ]
+
+        let contextProvider = GoogleSignInContextProvider(anchor: presentationAnchor)
+
+        let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
+            let session = ASWebAuthenticationSession(url: authComps.url!, callbackURLScheme: redirectScheme) { url, error in
+                if let error { continuation.resume(throwing: error) }
+                else if let url { continuation.resume(returning: url) }
+                else { continuation.resume(throwing: NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Authentication failed."])) }
+            }
+            session.presentationContextProvider = contextProvider
+            session.prefersEphemeralWebBrowserSession = false
+            self._googleAuthSession = session
+            self._googleContextProvider = contextProvider
+            session.start()
+        }
+        _googleAuthSession = nil
+        _googleContextProvider = nil
+
+        guard let callbackComps = URLComponents(url: callbackURL, resolvingAgainstBaseURL: true),
+              let code = callbackComps.queryItems?.first(where: { $0.name == "code" })?.value else {
+            throw NSError(domain: "GoogleSignIn", code: -2, userInfo: [NSLocalizedDescriptionKey: "Sign-in was cancelled or failed."])
+        }
+
+        let (idToken, accessToken) = try await exchangeGoogleAuthCode(
+            code: code, codeVerifier: codeVerifier, clientID: clientID, redirectURI: redirectURI
+        )
+
+        let payload = Self.decodeJWTPayload(idToken)
+        let firstName = payload?["given_name"] as? String ?? ""
+        let lastName = payload?["family_name"] as? String ?? ""
+        let email = payload?["email"] as? String
+
+        let googleCredential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+        let result = try await Auth.auth().signIn(with: googleCredential)
+        beginSocialOnboarding(
+            userID: result.user.uid,
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            authProvider: "google"
+        )
+        return result.user.uid
+    }
+
+    private func exchangeGoogleAuthCode(
+        code: String, codeVerifier: String, clientID: String, redirectURI: String
+    ) async throws -> (idToken: String, accessToken: String) {
+        let url = URL(string: "https://oauth2.googleapis.com/token")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        var formComps = URLComponents()
+        formComps.queryItems = [
+            URLQueryItem(name: "code", value: code),
+            URLQueryItem(name: "client_id", value: clientID),
+            URLQueryItem(name: "code_verifier", value: codeVerifier),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
+            URLQueryItem(name: "grant_type", value: "authorization_code"),
+        ]
+        request.httpBody = formComps.query?.data(using: .utf8)
+
+        let (data, _) = try await URLSession.shared.data(for: request)
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let idToken = json["id_token"] as? String,
+              let accessToken = json["access_token"] as? String else {
+            let errorMsg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error_description"] as? String
+            throw NSError(domain: "GoogleSignIn", code: -3, userInfo: [NSLocalizedDescriptionKey: errorMsg ?? "Failed to obtain Google tokens."])
+        }
+        return (idToken, accessToken)
     }
 
     static func randomNonceString(length: Int = 32) -> String {
@@ -96,15 +200,46 @@ final class AuthManager {
         return hashedData.map { String(format: "%02x", $0) }.joined()
     }
 
+    static func sha256Base64URLEncoded(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hash = SHA256.hash(data: inputData)
+        return Data(hash).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    static func decodeJWTPayload(_ token: String) -> [String: Any]? {
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var base64 = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let remainder = base64.count % 4
+        if remainder != 0 { base64 += String(repeating: "=", count: 4 - remainder) }
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
     func completeSignIn(userID: String) {
         currentUserID = userID
         isAuthenticated = true
         needsProfileCompletion = false
     }
 
-    func beginSocialOnboarding(userID: String) {
+    func beginSocialOnboarding(
+        userID: String,
+        firstName: String = "",
+        lastName: String = "",
+        email: String? = nil,
+        authProvider: String = "apple"
+    ) {
         currentUserID = userID
         needsProfileCompletion = true
+        pendingSocialFirstName = firstName
+        pendingSocialLastName = lastName
+        pendingSocialEmail = email
+        pendingSocialAuthProvider = authProvider
     }
 
     func signOut() {
@@ -119,9 +254,14 @@ final class AuthManager {
     }
 
     func deleteCurrentAuthUser() async throws {
-        try await Auth.auth().currentUser?.delete()
-        currentUserID = nil
-        isAuthenticated = false
-        needsProfileCompletion = false
+        guard let user = Auth.auth().currentUser else { return }
+        try await user.delete()
+        signOut()
     }
+}
+
+private class GoogleSignInContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    let anchor: ASPresentationAnchor
+    init(anchor: ASPresentationAnchor) { self.anchor = anchor }
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor { anchor }
 }

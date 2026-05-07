@@ -195,7 +195,7 @@ struct SocialProfileCompletionView: View {
             heightInches: heightInches,
             weightLbs:    Double(weightText) ?? 160,
             goals:        Array(selectedGoals),
-            authProvider: "apple"
+            authProvider: authManager.pendingSocialAuthProvider
         )
         Task {
             try? await dataStore.saveProfile(profile, userId: userID)

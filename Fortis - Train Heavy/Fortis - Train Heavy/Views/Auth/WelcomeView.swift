@@ -5,9 +5,10 @@ struct WelcomeView: View {
     @Environment(AuthManager.self) private var authManager
     @EnvironmentObject private var dataStore: FirebaseDataStore
 
-    @State private var showingSignUp   = false
-    @State private var showingSignIn   = false
-    @State private var googleAlert     = false
+    @State private var showingSignUp       = false
+    @State private var showingSignIn       = false
+    @State private var googleSignInError: String? = nil
+    @State private var showingGoogleError  = false
     @State private var currentNonce: String?
 
     var body: some View {
@@ -37,13 +38,17 @@ struct WelcomeView: View {
                 .environmentObject(dataStore)
         }
         .sheet(isPresented: $authManager.needsProfileCompletion) {
-            SocialProfileCompletionView()
-                .environment(authManager)
+            SocialProfileCompletionView(
+                firstName: authManager.pendingSocialFirstName,
+                lastName: authManager.pendingSocialLastName,
+                email: authManager.pendingSocialEmail
+            )
+            .environment(authManager)
         }
-        .alert("Google Sign-In", isPresented: $googleAlert) {
+        .alert("Sign-In Error", isPresented: $showingGoogleError) {
             Button("OK") {}
         } message: {
-            Text("Google Sign-In requires the GoogleSignIn SDK. Add it via File → Add Package Dependencies → https://github.com/google/GoogleSignIn-iOS")
+            Text(googleSignInError ?? "Google Sign-In failed. Please try again.")
         }
     }
 
@@ -97,8 +102,8 @@ struct WelcomeView: View {
             .frame(height: 52)
             .clipShape(RoundedRectangle(cornerRadius: 14))
 
-            // Google Sign In (requires SDK — shows guidance alert)
-            Button(action: { googleAlert = true }) {
+            // Google Sign In
+            Button(action: startGoogleSignIn) {
                 HStack(spacing: 10) {
                     ZStack {
                         Circle().fill(.white).frame(width: 22, height: 22)
@@ -165,6 +170,26 @@ struct WelcomeView: View {
             }
         case .failure:
             break
+        }
+    }
+
+    // MARK: - Google Sign In Handler
+    private func startGoogleSignIn() {
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let window = windowScene.keyWindow else { return }
+        Task {
+            do {
+                try await authManager.signInWithGoogle(presentationAnchor: window)
+            } catch {
+                let nsError = error as NSError
+                let cancelled = nsError.domain == ASWebAuthenticationSessionErrorDomain &&
+                                nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
+                if !cancelled {
+                    googleSignInError = error.localizedDescription
+                    showingGoogleError = true
+                }
+            }
         }
     }
 }
