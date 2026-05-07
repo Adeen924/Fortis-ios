@@ -7,6 +7,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Configure Firebase here so the app delegate is fully wired up before
+        // Firebase swizzles it. Calling configure() from FortisApp.init() is too
+        // early — UIKit hasn't set the delegate yet, so the swizzler fails.
+        FirebaseService.configure()
         // Register for remote notifications so Firebase can receive silent APNs
         // pushes for phone number verification without requiring user permission.
         UIApplication.shared.registerForRemoteNotifications()

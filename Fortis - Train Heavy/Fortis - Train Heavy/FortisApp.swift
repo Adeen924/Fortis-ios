@@ -10,7 +10,6 @@ struct FortisApp: App {
     @State private var isCheckingSession = true
 
     init() {
-        FirebaseService.configure()
         _authManager = State(initialValue: AuthManager())
     }
 
