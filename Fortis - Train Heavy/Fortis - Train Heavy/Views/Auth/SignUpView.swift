@@ -17,6 +17,13 @@ struct SignUpView: View {
     @State private var password     = ""
     @State private var confirmPass  = ""
 
+    // Phone auth
+    @State private var isVerifyingPhone    = false
+    @State private var otpCode             = ""
+    @State private var phoneVerificationID = ""
+    @State private var phoneSignedInUserID: String? = nil
+    @State private var isSendingCode       = false
+
     // Step 2 — Identity
     @State private var firstName = ""
     @State private var lastName  = ""
@@ -43,7 +50,6 @@ struct SignUpView: View {
                 VStack(spacing: 0) {
                     progressBar.padding(.horizontal, 24).padding(.top, 4)
 
-                    // Animate step transitions
                     ZStack {
                         switch step {
                         case 1: step1View.transition(.asymmetric(insertion: .push(from: .trailing), removal: .push(from: .leading)))
@@ -94,7 +100,7 @@ struct SignUpView: View {
 
     private var stepTitle: String {
         switch step {
-        case 1: return "CONTACT INFO"
+        case 1: return isVerifyingPhone ? "VERIFY PHONE" : "CONTACT INFO"
         case 2: return "YOUR IDENTITY"
         case 3: return "PHYSICAL PROFILE"
         case 4: return "YOUR GOALS"
@@ -106,43 +112,121 @@ struct SignUpView: View {
     private var step1View: some View {
         ScrollView {
             VStack(spacing: 28) {
-                stepHeader(
-                    icon: "envelope.fill",
-                    title: "How do we reach you?",
-                    subtitle: "Your contact info is used to secure your account."
-                )
+                if isVerifyingPhone {
+                    otpSection
+                } else {
+                    stepHeader(
+                        icon: "envelope.fill",
+                        title: "How do we reach you?",
+                        subtitle: "Your contact info is used to secure your account."
+                    )
 
-                VStack(spacing: 16) {
-                    // Contact method toggle
-                    Picker("Contact", selection: $contactMethod) {
-                        Text("Email").tag(ContactMethod.email)
-                        Text("Phone").tag(ContactMethod.phone)
+                    VStack(spacing: 16) {
+                        Picker("Contact", selection: $contactMethod) {
+                            Text("Email").tag(ContactMethod.email)
+                            Text("Phone").tag(ContactMethod.phone)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(3)
+                        .background(Color.romanSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                        if contactMethod == .email {
+                            romanField(placeholder: "Email address", text: $email, keyboard: .emailAddress)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        } else {
+                            romanField(placeholder: "Phone number (US, 10 digits)", text: $phoneNumber, keyboard: .phonePad)
+                        }
+
+                        if contactMethod == .email {
+                            romanSecureField(placeholder: "Password (8+ characters)", text: $password)
+                            romanSecureField(placeholder: "Confirm password", text: $confirmPass)
+                        }
                     }
-                    .pickerStyle(.segmented)
-                    .padding(3)
-                    .background(Color.romanSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    if let error = validationError { errorLabel(error) }
 
                     if contactMethod == .email {
-                        romanField(placeholder: "Email address", text: $email, keyboard: .emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
+                        continueButton(action: validateAndAdvanceStep1)
                     } else {
-                        romanField(placeholder: "Phone number (10 digits)", text: $phoneNumber, keyboard: .phonePad)
+                        // Show spinner on the button while sending
+                        Button(action: validateAndAdvanceStep1) {
+                            HStack(spacing: 8) {
+                                if isSendingCode {
+                                    ProgressView().tint(.romanBackground)
+                                } else {
+                                    Text("SEND CODE")
+                                        .font(.system(size: 14, weight: .black))
+                                        .tracking(3)
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 13, weight: .bold))
+                                }
+                            }
+                            .foregroundStyle(.romanBackground)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(LinearGradient.romanGoldGradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                        .disabled(isSendingCode)
                     }
-
-                    romanSecureField(placeholder: "Password (8+ characters)", text: $password)
-                    romanSecureField(placeholder: "Confirm password", text: $confirmPass)
                 }
-
-                if let error = validationError {
-                    errorLabel(error)
-                }
-
-                continueButton(action: validateAndAdvanceStep1)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
+        }
+    }
+
+    private var otpSection: some View {
+        VStack(spacing: 28) {
+            VStack(spacing: 12) {
+                Image(systemName: "message.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.romanGold)
+                    .padding(.top, 8)
+                Text("Check your messages")
+                    .font(.title3.bold())
+                    .foregroundStyle(.romanParchment)
+                let digits = phoneNumber.filter { $0.isNumber }
+                Text("We sent a 6-digit code to +1 \(digits).")
+                    .font(.subheadline)
+                    .foregroundStyle(.romanParchmentDim)
+                    .multilineTextAlignment(.center)
+            }
+
+            romanField(placeholder: "6-digit code", text: $otpCode, keyboard: .numberPad)
+                .onChange(of: otpCode) { _, new in
+                    otpCode = String(new.filter { $0.isNumber }.prefix(6))
+                }
+
+            if let error = validationError { errorLabel(error) }
+
+            Button(action: verifyOTPAndAdvance) {
+                HStack(spacing: 8) {
+                    if isSendingCode {
+                        ProgressView().tint(.romanBackground)
+                    } else {
+                        Text("VERIFY CODE")
+                            .font(.system(size: 14, weight: .black))
+                            .tracking(3)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                    }
+                }
+                .foregroundStyle(.romanBackground)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(LinearGradient.romanGoldGradient)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .disabled(isSendingCode)
+
+            Button(action: resendCode) {
+                Text("Resend code")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.romanGoldDim)
+            }
         }
     }
 
@@ -209,13 +293,11 @@ struct SignUpView: View {
                 )
 
                 VStack(spacing: 20) {
-                    // Age
                     VStack(alignment: .leading, spacing: 8) {
                         fieldLabel("AGE")
                         romanField(placeholder: "Years (e.g. 25)", text: $age, keyboard: .numberPad)
                     }
 
-                    // Height
                     VStack(alignment: .leading, spacing: 8) {
                         fieldLabel("HEIGHT")
                         HStack(spacing: 0) {
@@ -242,7 +324,6 @@ struct SignUpView: View {
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.romanBorder, lineWidth: 0.5))
                     }
 
-                    // Weight
                     VStack(alignment: .leading, spacing: 8) {
                         fieldLabel("WEIGHT")
                         HStack(spacing: 0) {
@@ -295,7 +376,6 @@ struct SignUpView: View {
 
                 if let error = validationError { errorLabel(error) }
 
-                // Final create account button
                 Button(action: createAccount) {
                     HStack(spacing: 8) {
                         if isCreating {
@@ -324,7 +404,13 @@ struct SignUpView: View {
     // MARK: - Validation & Navigation
     private func goBack() {
         validationError = nil
-        if step > 1 { withAnimation { step -= 1 } } else { dismiss() }
+        if step == 1 && isVerifyingPhone {
+            withAnimation { isVerifyingPhone = false }
+        } else if step > 1 {
+            withAnimation { step -= 1 }
+        } else {
+            dismiss()
+        }
     }
 
     private func validateAndAdvanceStep1() {
@@ -333,19 +419,62 @@ struct SignUpView: View {
             guard email.contains("@"), email.contains(".") else {
                 validationError = "Enter a valid email address."; return
             }
+            guard password.count >= 8 else {
+                validationError = "Password must be at least 8 characters."; return
+            }
+            guard password == confirmPass else {
+                validationError = "Passwords do not match."; return
+            }
+            withAnimation { step = 2 }
         } else {
             let digits = phoneNumber.filter { $0.isNumber }
             guard digits.count == 10 else {
-                validationError = "Enter a 10-digit phone number."; return
+                validationError = "Enter a 10-digit US phone number."; return
             }
+            sendSMSCode(digits: digits)
         }
-        guard password.count >= 8 else { validationError = "Password must be at least 8 characters."; return }
-        guard password == confirmPass   else { validationError = "Passwords do not match."; return }
-        guard contactMethod == .email else {
-            validationError = "Phone login needs Firebase SMS verification. Use email for this account for now."
-            return
+    }
+
+    private func sendSMSCode(digits: String) {
+        isSendingCode = true
+        validationError = nil
+        Task {
+            do {
+                let id = try await authManager.sendPhoneVerification(phoneNumber: "+1\(digits)")
+                phoneVerificationID = id
+                withAnimation { isVerifyingPhone = true }
+            } catch {
+                validationError = error.localizedDescription
+            }
+            isSendingCode = false
         }
-        withAnimation { step = 2 }
+    }
+
+    private func resendCode() {
+        let digits = phoneNumber.filter { $0.isNumber }
+        guard digits.count == 10 else { return }
+        sendSMSCode(digits: digits)
+    }
+
+    private func verifyOTPAndAdvance() {
+        guard otpCode.count == 6 else {
+            validationError = "Enter the 6-digit code from your messages."; return
+        }
+        validationError = nil
+        isSendingCode = true
+        Task {
+            do {
+                let userId = try await authManager.signInWithPhone(
+                    verificationID: phoneVerificationID,
+                    code: otpCode
+                )
+                phoneSignedInUserID = userId
+                withAnimation { step = 2 }
+            } catch {
+                validationError = error.localizedDescription
+            }
+            isSendingCode = false
+        }
     }
 
     private func validateAndAdvanceStep2() {
@@ -400,7 +529,16 @@ struct SignUpView: View {
                     try await dataStore.saveProfile(profile, userId: userId)
                     authManager.completeSignIn(userID: userId)
                 } else {
-                    validationError = "Phone login needs Firebase SMS verification. Use email for this account for now."
+                    // Phone user is already signed into Firebase from the OTP step.
+                    // Save profile then call finishPhoneSignUp to complete the flow.
+                    let userId = phoneSignedInUserID ?? authManager.currentUserID ?? ""
+                    guard !userId.isEmpty else {
+                        validationError = "Phone authentication expired. Please start over."
+                        isCreating = false
+                        return
+                    }
+                    try await dataStore.saveProfile(profile, userId: userId)
+                    authManager.finishPhoneSignUp(userID: userId)
                 }
             } catch {
                 validationError = error.localizedDescription

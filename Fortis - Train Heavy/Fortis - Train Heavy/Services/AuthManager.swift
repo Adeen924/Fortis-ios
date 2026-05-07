@@ -17,6 +17,7 @@ final class AuthManager {
     private var authHandle: AuthStateDidChangeListenerHandle?
     @ObservationIgnored private var _googleAuthSession: ASWebAuthenticationSession?
     @ObservationIgnored private var _googleContextProvider: GoogleSignInContextProvider?
+    @ObservationIgnored private var phoneSignUpInProgress = false
 
     func startSessionListener() async {
         if let cached = Auth.auth().currentUser {
@@ -32,6 +33,15 @@ final class AuthManager {
         guard authHandle == nil else { return }
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
+            // While phone sign-up is in progress the user is already authenticated
+            // in Firebase but hasn't saved a profile yet. Hold the app on WelcomeView
+            // by keeping needsProfileCompletion = true until finishPhoneSignUp is called.
+            if let user, self.phoneSignUpInProgress {
+                self.currentUserID = user.uid
+                self.isAuthenticated = true
+                self.needsProfileCompletion = true
+                return
+            }
             self.currentUserID = user?.uid
             self.isAuthenticated = user != nil
             if user == nil {
@@ -49,6 +59,25 @@ final class AuthManager {
     func signInWithEmail(email: String, password: String) async throws -> String {
         let result = try await Auth.auth().signIn(withEmail: email, password: password)
         return result.user.uid
+    }
+
+    func sendPhoneVerification(phoneNumber: String) async throws -> String {
+        try await PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: nil)
+    }
+
+    func signInWithPhone(verificationID: String, code: String) async throws -> String {
+        phoneSignUpInProgress = true
+        let credential = PhoneAuthProvider.provider().credential(
+            withVerificationID: verificationID,
+            verificationCode: code
+        )
+        let result = try await Auth.auth().signIn(with: credential)
+        return result.user.uid
+    }
+
+    func finishPhoneSignUp(userID: String) {
+        phoneSignUpInProgress = false
+        completeSignIn(userID: userID)
     }
 
     func signInWithApple(credential: ASAuthorizationAppleIDCredential, nonce: String) async throws -> String {

@@ -37,7 +37,10 @@ struct WelcomeView: View {
                 .environment(authManager)
                 .environmentObject(dataStore)
         }
-        .sheet(isPresented: $authManager.needsProfileCompletion) {
+        .sheet(isPresented: Binding(
+            get: { authManager.needsProfileCompletion && !showingSignUp },
+            set: { if !$0 { authManager.needsProfileCompletion = false } }
+        )) {
             SocialProfileCompletionView(
                 firstName: authManager.pendingSocialFirstName,
                 lastName: authManager.pendingSocialLastName,
