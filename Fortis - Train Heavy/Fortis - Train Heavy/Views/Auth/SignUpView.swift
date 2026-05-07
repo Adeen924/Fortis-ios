@@ -444,7 +444,24 @@ struct SignUpView: View {
                 phoneVerificationID = id
                 withAnimation { isVerifyingPhone = true }
             } catch {
-                validationError = error.localizedDescription
+                let nsError = error as NSError
+                print("=== Phone Auth Error ===")
+                print("Domain: \(nsError.domain)")
+                print("Code: \(nsError.code)")
+                print("Description: \(nsError.localizedDescription)")
+                print("UserInfo: \(nsError.userInfo)")
+                if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    print("Underlying domain: \(underlying.domain)")
+                    print("Underlying code: \(underlying.code)")
+                    print("Underlying description: \(underlying.localizedDescription)")
+                    print("Underlying userInfo: \(underlying.userInfo)")
+                }
+                if let detail = nsError.userInfo["FIRAuthErrorUserInfoDeserializedResponseKey"] {
+                    print("Firebase response: \(detail)")
+                }
+                print("=======================")
+                let detail = (nsError.userInfo[NSUnderlyingErrorKey] as? NSError)?.localizedDescription
+                validationError = detail ?? error.localizedDescription
             }
             isSendingCode = false
         }
@@ -466,7 +483,8 @@ struct SignUpView: View {
             do {
                 let userId = try await authManager.signInWithPhone(
                     verificationID: phoneVerificationID,
-                    code: otpCode
+                    code: otpCode,
+                    isSignUp: true
                 )
                 phoneSignedInUserID = userId
                 withAnimation { step = 2 }

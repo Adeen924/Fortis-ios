@@ -19,9 +19,22 @@
 		A9B0F9E62FA6F2D100138AC9 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A98970C12FA2A4AA0037BD54 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Info.plist",
+			);
+			target = A989709A2FA2A4A80037BD54 /* Fortis - Train Heavy */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A989709D2FA2A4A80037BD54 /* Fortis - Train Heavy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A98970C12FA2A4AA0037BD54 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 			path = "Fortis - Train Heavy";
 			sourceTree = "<group>";
 		};

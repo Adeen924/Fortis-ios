@@ -1,3 +1,4 @@
+import FirebaseAuth
 import SwiftUI
 
 @main
@@ -45,6 +46,9 @@ struct FortisApp: App {
             }
             .onChange(of: authManager.currentUserID) { _, newValue in
                 dataStore.start(for: newValue)
+            }
+            .onOpenURL { url in
+                _ = Auth.auth().canHandle(url)
             }
         }
     }

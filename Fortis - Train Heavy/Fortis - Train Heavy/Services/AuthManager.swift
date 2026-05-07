@@ -68,8 +68,8 @@ final class AuthManager {
         try await PhoneAuthProvider.provider().verifyPhoneNumber(phoneNumber, uiDelegate: phoneAuthUIDelegate)
     }
 
-    func signInWithPhone(verificationID: String, code: String) async throws -> String {
-        phoneSignUpInProgress = true
+    func signInWithPhone(verificationID: String, code: String, isSignUp: Bool = false) async throws -> String {
+        if isSignUp { phoneSignUpInProgress = true }
         let credential = PhoneAuthProvider.provider().credential(
             withVerificationID: verificationID,
             verificationCode: code
